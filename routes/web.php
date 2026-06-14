@@ -1,0 +1,83 @@
+<?php
+
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\BackOffice\AccountController;
+use App\Http\Controllers\BackOffice\ActivityLogController;
+use App\Http\Controllers\BackOffice\DashboardController;
+use App\Http\Controllers\BackOffice\OnlineOrderController;
+use App\Http\Controllers\BackOffice\PosController;
+use App\Http\Controllers\BackOffice\ReportController;
+use App\Http\Controllers\BackOffice\ResourceController;
+use App\Http\Controllers\BackOffice\SettingsController;
+use App\Http\Controllers\BackOffice\SystemToolsController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('guest')->group(function (): void {
+    Route::get('/', [LoginController::class, 'create'])->name('login');
+    Route::get('/login', [LoginController::class, 'create']);
+    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+});
+
+Route::middleware('auth')->group(function (): void {
+    Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+    Route::get('/system-tools', [SystemToolsController::class, 'index'])->middleware('permission:system_tools.view')->name('system-tools.index');
+    Route::post('/system-tools/maintenance', [SystemToolsController::class, 'toggleMaintenance'])->middleware('permission:system_tools.view')->name('system-tools.maintenance');
+    Route::post('/system-tools/commands', [SystemToolsController::class, 'runCommand'])->middleware('permission:system_tools.view')->name('system-tools.commands.run');
+    Route::post('/system-tools/sequence', [SystemToolsController::class, 'runSequence'])->middleware('permission:system_tools.view')->name('system-tools.sequence');
+    Route::post('/system-tools/upgrade', [SystemToolsController::class, 'uploadUpgrade'])->middleware('permission:system_tools.view')->name('system-tools.upgrade');
+    Route::patch('/system-tools/users/{user}/toggle-active', [SystemToolsController::class, 'toggleUserStatus'])->middleware('permission:system_tools.view')->name('system-tools.users.toggle-active');
+
+    Route::middleware('system.lock')->group(function (): void {
+        Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
+
+        Route::get('/pos', [PosController::class, 'index'])->middleware('permission:pos.access')->name('pos.index');
+        Route::post('/pos/register/open', [PosController::class, 'openRegister'])->middleware('permission:pos.open_register')->name('pos.register.open');
+        Route::post('/pos/register/close', [PosController::class, 'closeRegister'])->middleware('permission:pos.close_register')->name('pos.register.close');
+        Route::get('/pos/register/close-summary', [PosController::class, 'getRegisterCloseSummary'])->middleware('permission:pos.close_register')->name('pos.register.close-summary');
+        Route::get('/pos/register/close-cash-book/pdf', [PosController::class, 'downloadRegisterCloseCashBookPdf'])->middleware('permission:pos.close_register')->name('pos.register.close-cash-book.pdf');
+        Route::post('/pos/hold', [PosController::class, 'hold'])->middleware('permission:pos.hold_order')->name('pos.hold');
+        Route::get('/pos/held-order/{hold}', [PosController::class, 'resumeHeldOrder'])->middleware('permission:pos.resume_hold_order')->name('pos.resume-held-order');
+        Route::get('/pos/hold/{table}', [PosController::class, 'resume'])->middleware('permission:pos.resume_hold_order')->name('pos.resume');
+        Route::delete('/pos/hold/{hold}', [PosController::class, 'cancelHold'])->middleware('permission:pos.hold_order')->name('pos.hold.cancel');
+        Route::post('/pos/transfer', [PosController::class, 'transfer'])->middleware('permission:pos.transfer_table')->name('pos.transfer');
+        Route::post('/pos/print-bill', [PosController::class, 'printBill'])->middleware('permission:pos.print_bill')->name('pos.print');
+        Route::post('/pos/payment', [PosController::class, 'pay'])->middleware('permission:pos.payment')->name('pos.pay');
+        Route::post('/pos/customer-due-payment', [PosController::class, 'storeCustomerDuePayment'])->middleware('permission:pos.payment')->name('pos.customer-due-payment.store');
+        Route::post('/pos/supplier-payment', [PosController::class, 'storeSupplierPayment'])->middleware('permission:purchases.edit')->name('pos.supplier-payment.store');
+        Route::post('/pos/customers', [PosController::class, 'storeCustomer'])->middleware('permission:customers.create')->name('pos.customers.store');
+        Route::post('/pos/waiters', [PosController::class, 'storeWaiter'])->middleware('permission:waiters.create')->name('pos.waiters.store');
+        Route::post('/pos/expense-categories', [PosController::class, 'storeExpenseCategory'])->middleware('permission:pos.close_register')->name('pos.expense-categories.store');
+        Route::post('/pos/expense', [PosController::class, 'storeExpense'])->middleware('permission:pos.close_register')->name('pos.expense.store');
+        Route::delete('/pos/expense/{expense}', [PosController::class, 'destroyExpense'])->middleware('permission:pos.close_register')->name('pos.expense.destroy');
+
+        Route::get('/pos/online-orders', [OnlineOrderController::class, 'index'])->middleware('permission:online_orders.view')->name('online-orders.index');
+        Route::post('/pos/online-orders', [OnlineOrderController::class, 'store'])->middleware('permission:online_orders.create')->name('online-orders.store');
+        Route::post('/pos/online-orders/{onlineOrder}/payment', [OnlineOrderController::class, 'addPayment'])->middleware('permission:online_orders.add_payment')->name('online-orders.payment');
+        Route::post('/pos/online-orders/{onlineOrder}/status', [OnlineOrderController::class, 'updateStatus'])->middleware('permission:online_orders.edit')->name('online-orders.status');
+        Route::get('/pos/online-orders/{onlineOrder}/print', [OnlineOrderController::class, 'printInvoice'])->middleware('permission:online_orders.print')->name('online-orders.print');
+
+        Route::get('/settings', [SettingsController::class, 'edit'])->middleware('permission:settings.view')->name('settings.edit');
+        Route::put('/settings', [SettingsController::class, 'update'])->middleware('permission:settings.update')->name('settings.update');
+        Route::get('/activity-logs', ActivityLogController::class)->middleware('permission:activity_logs.view')->name('activity-logs.index');
+        Route::get('/reports/{report}/export/{format}', [ReportController::class, 'export'])->whereIn('format', ['excel', 'pdf'])->name('reports.export');
+        Route::get('/reports/{report}', [ReportController::class, 'show'])->name('reports.show');
+        Route::get('/accounts/cash-book', [AccountController::class, 'cashBook'])->middleware('permission:accounts.view')->name('accounts.cash-book');
+        Route::get('/accounts/cash-book/export/{format}', [AccountController::class, 'exportCashBook'])->whereIn('format', ['excel', 'pdf'])->middleware('permission:accounts.view')->name('accounts.cash-book.export');
+        Route::post('/accounts/bank-accounts', [AccountController::class, 'storeBankAccount'])->middleware('permission:accounts.bank_transfer.create')->name('accounts.bank-accounts.store');
+        Route::post('/accounts/bank-transfers', [AccountController::class, 'storeTransfer'])->middleware('permission:accounts.bank_transfer.create')->name('accounts.bank-transfers.store');
+
+        Route::prefix('manage/{module}')->name('backoffice.modules.')->group(function (): void {
+            Route::get('/', [ResourceController::class, 'index'])->name('index');
+            Route::get('/create', [ResourceController::class, 'create'])->name('create');
+            Route::post('/', [ResourceController::class, 'store'])->name('store');
+            Route::get('/{id}/print', [ResourceController::class, 'printSale'])->name('print');
+            Route::get('/{id}', [ResourceController::class, 'show'])->name('show');
+            Route::get('/{id}/edit', [ResourceController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [ResourceController::class, 'update'])->name('update');
+            Route::post('/{id}/toggle-active', [ResourceController::class, 'toggleActive'])->name('toggle-active');
+            Route::delete('/{id}', [ResourceController::class, 'destroy'])->name('destroy');
+            Route::get('/{id}/payments', [ResourceController::class, 'payments'])->name('payments');
+            Route::post('/{id}/payments', [ResourceController::class, 'storePayment'])->name('payments.store');
+        });
+    });
+});
