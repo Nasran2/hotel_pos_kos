@@ -86,9 +86,9 @@ document.querySelectorAll('[data-date-range]').forEach((rangeSelect) => {
     const calculateDateRange = (range) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         const getDateString = (date) => date.toISOString().split('T')[0];
-        
+
         switch (range) {
             case 'today': {
                 return { from: getDateString(today), to: getDateString(today) };
@@ -138,13 +138,13 @@ document.querySelectorAll('[data-date-range]').forEach((rangeSelect) => {
 
     const syncDateFieldState = () => {
         const isCustom = rangeSelect.value === 'custom';
-        
+
         if (!isCustom) {
             const range = calculateDateRange(rangeSelect.value);
             fromInput.value = range.from;
             toInput.value = range.to;
         }
-        
+
         fromInput.classList.toggle('opacity-60', !isCustom);
         toInput.classList.toggle('opacity-60', !isCustom);
         fromInput.disabled = !isCustom;
@@ -1525,7 +1525,7 @@ if (pos) {
     const renderExpenses = () => {
         const expensesWrap = document.querySelector('[data-close-expenses-wrap]');
         const expensesList = document.querySelector('[data-close-expenses-list]');
-        
+
         if (!expensesList) return;
 
         if (expenses.length === 0) {
@@ -1732,11 +1732,13 @@ if (pos) {
                 return;
             }
 
-            expectedCashBalance = Number(data.cash_in_cashier || 0);
+            expectedCashBalance = Number(data.cash_balance_now || 0);
             expectedBankBalance = Number(data.bank_amount || 0);
             expenses = Array.isArray(data.expenses) ? data.expenses : [];
 
-            document.querySelector('[data-cash-in-cashier]').textContent = formatCurrency(data.cash_in_cashier);
+            document.querySelector('[data-cash-in-cashier]').textContent = formatCurrency(data.cash_balance_now);
+            const totalCashSalesNode = document.querySelector('[data-total-cash-sales]');
+            if (totalCashSalesNode) totalCashSalesNode.textContent = formatCurrency(data.total_sale_cash);
             document.querySelector('[data-bank-amount]').textContent = formatCurrency(data.bank_amount);
             document.querySelector('[data-total-orders]').textContent = data.total_orders;
             document.querySelector('[data-tables-served]').textContent = data.total_tables_served;

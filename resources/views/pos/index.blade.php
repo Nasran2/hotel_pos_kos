@@ -1,11 +1,11 @@
 <x-layouts.app heading="Sales / POS" title="POS" :pos-fullscreen="true" :show-date-filter="false">
     @php
-        $receiptPaperSize = $settings['invoice_paper_size'] ?? '80mm';
-        $receiptWidth = match ($receiptPaperSize) {
-            'A4' => '190mm',
-            'A5' => '136mm',
-            default => '80mm',
-        };
+    $receiptPaperSize = $settings['invoice_paper_size'] ?? '80mm';
+    $receiptWidth = match ($receiptPaperSize) {
+    'A4' => '190mm',
+    'A5' => '136mm',
+    default => '80mm',
+    };
     @endphp
 
     <style>
@@ -604,18 +604,18 @@
         }
 
         [data-bill-discount-type] {
-    cursor: pointer;
-    appearance: none;
-    background-image:
-        linear-gradient(45deg, transparent 50%, #64748b 50%),
-        linear-gradient(135deg, #64748b 50%, transparent 50%);
-    background-position:
-        calc(100% - 20px) calc(50% - 3px),
-        calc(100% - 14px) calc(50% - 3px);
-    background-size: 6px 6px, 6px 6px;
-    background-repeat: no-repeat;
-    padding-right: 42px;
-}
+            cursor: pointer;
+            appearance: none;
+            background-image:
+                linear-gradient(45deg, transparent 50%, #64748b 50%),
+                linear-gradient(135deg, #64748b 50%, transparent 50%);
+            background-position:
+                calc(100% - 20px) calc(50% - 3px),
+                calc(100% - 14px) calc(50% - 3px);
+            background-size: 6px 6px, 6px 6px;
+            background-repeat: no-repeat;
+            padding-right: 42px;
+        }
 
 
 
@@ -900,44 +900,44 @@
     </style>
 
     @unless($register)
-        <div class="pos-register-overlay fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4 backdrop-blur-md">
-            <form method="POST" action="{{ route('pos.register.open') }}"
-                class="pos-register-panel w-full max-w-md animate-pop bg-white p-6">
-                @csrf
+    <div class="pos-register-overlay fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4 backdrop-blur-md">
+        <form method="POST" action="{{ route('pos.register.open') }}"
+            class="pos-register-panel w-full max-w-md animate-pop bg-white p-6">
+            @csrf
 
-                <div class="mb-5 flex items-center gap-4">
-                    <div
-                        class="grid size-14 place-items-center rounded-2xl bg-blue-600 text-2xl font-black text-white shadow-lg shadow-blue-600/20">
-                        Rs
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-black text-slate-950">Open Register</h2>
-                        <p class="mt-1 text-sm font-semibold text-slate-500">Enter opening drawer balance before taking
-                            orders.</p>
-                    </div>
+            <div class="mb-5 flex items-center gap-4">
+                <div
+                    class="grid size-14 place-items-center rounded-2xl bg-blue-600 text-2xl font-black text-white shadow-lg shadow-blue-600/20">
+                    Rs
                 </div>
+                <div>
+                    <h2 class="text-2xl font-black text-slate-950">Open Register</h2>
+                    <p class="mt-1 text-sm font-semibold text-slate-500">Enter opening drawer balance before taking
+                        orders.</p>
+                </div>
+            </div>
 
-                <label class="mt-5 grid gap-2 text-sm font-black text-slate-700">
-                    Opening Cash
-                    <input class="form-control" type="number" step="0.01" name="opening_cash" required autofocus
-                        placeholder="0.00" value="0">
-                </label>
+            <label class="mt-5 grid gap-2 text-sm font-black text-slate-700">
+                Opening Cash
+                <input class="form-control" type="number" step="0.01" name="opening_cash" required autofocus
+                    placeholder="0.00" value="0">
+            </label>
 
-                <label class="mt-4 grid gap-2 text-sm font-black text-slate-700">
-                    Note
-                    <textarea class="form-control min-h-24" name="opening_note"
-                        placeholder="Opening note optional..."></textarea>
-                </label>
+            <label class="mt-4 grid gap-2 text-sm font-black text-slate-700">
+                Note
+                <textarea class="form-control min-h-24" name="opening_note"
+                    placeholder="Opening note optional..."></textarea>
+            </label>
 
-                @can('pos.open_register')
-                    <button class="btn-primary mt-5 w-full justify-center">Open Register</button>
-                @endcan
+            @can('pos.open_register')
+            <button class="btn-primary mt-5 w-full justify-center">Open Register</button>
+            @endcan
 
-                @can('dashboard.view')
-                    <a href="{{ route('dashboard') }}" class="btn-secondary mt-3 w-full justify-center">Go to Dashboard</a>
-                @endcan
-            </form>
-        </div>
+            @can('dashboard.view')
+            <a href="{{ route('dashboard') }}" class="btn-secondary mt-3 w-full justify-center">Go to Dashboard</a>
+            @endcan
+        </form>
+    </div>
     @endunless
 
     <div class="pos-toast" data-pos-toast role="alert" aria-live="assertive">
@@ -964,8 +964,12 @@
         data-customer-due-payment-url="{{ route('pos.customer-due-payment.store') }}"
         data-supplier-payment-url="{{ route('pos.supplier-payment.store') }}">
 
-        <script type="application/json" data-due-customers-json>@json($dueCustomers)</script>
-        <script type="application/json" data-due-suppliers-json>@json($dueSuppliers)</script>
+        <script type="application/json" data-due-customers-json>
+            @json($dueCustomers)
+        </script>
+        <script type="application/json" data-due-suppliers-json>
+            @json($dueSuppliers)
+        </script>
 
         <section class="space-y-4">
             <div class="pos-card pos-assignment-card">
@@ -978,25 +982,25 @@
 
                     <div class="flex flex-wrap items-center gap-2">
                         @can('pos.payment')
-                            <button class="btn-secondary" data-modal-open="customer-due-payment-modal" type="button">Receive Due Payment</button>
+                        <button class="btn-secondary" data-modal-open="customer-due-payment-modal" type="button">Receive Due Payment</button>
                         @endcan
 
                         @can('purchases.edit')
-                            <button class="btn-secondary" data-modal-open="supplier-payment-modal" type="button">Pay Supplier</button>
+                        <button class="btn-secondary" data-modal-open="supplier-payment-modal" type="button">Pay Supplier</button>
                         @endcan
 
                         @can('pos.close_register')
-                            <button class="btn-secondary" data-modal-open="expense-modal" type="button">+ Add Expense</button>
+                        <button class="btn-secondary" data-modal-open="expense-modal" type="button">+ Add Expense</button>
                         @endcan
 
                         @if($register)
-                            <a href="{{ route('online-orders.index') }}" class="btn-secondary">Online Orders</a>
+                        <a href="{{ route('online-orders.index') }}" class="btn-secondary">Online Orders</a>
                         @else
-                            <button type="button" class="btn-secondary" disabled title="Open register first">Online Orders</button>
+                        <button type="button" class="btn-secondary" disabled title="Open register first">Online Orders</button>
                         @endif
 
                         @can('tables.create')
-                            <a href="{{ route('backoffice.modules.create', 'tables') }}" class="btn-primary">+ New Table</a>
+                        <a href="{{ route('backoffice.modules.create', 'tables') }}" class="btn-primary">+ New Table</a>
                         @endcan
 
                         <button class="btn-secondary px-4 py-2 text-[11px]" data-modal-open="shortcut-modal" type="button">
@@ -1018,57 +1022,57 @@
 
                 <div class="pos-table-grid mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5">
                     @foreach($tables as $table)
-                        @php
-                            $activeOrder = $holds[$table->id] ?? null;
-                            $status = $activeOrder?->status ?? $table->status;
-                            $statusLabel = $status === 'payment_pending' ? 'Waiting Payment' : str($status)->replace('_', ' ')->headline();
-                        @endphp
+                    @php
+                    $activeOrder = $holds[$table->id] ?? null;
+                    $status = $activeOrder?->status ?? $table->status;
+                    $statusLabel = $status === 'payment_pending' ? 'Waiting Payment' : str($status)->replace('_', ' ')->headline();
+                    @endphp
 
-                        <button class="table-card" data-table-id="{{ $table->id }}"
-                            data-table-name="Table {{ $table->number }}" data-held="{{ $activeOrder ? '1' : '0' }}"
-                            data-resume-url="{{ route('pos.resume', $table->id) }}">
-                            <span
-                                class="table-avatar grid size-12 place-items-center rounded-full bg-slate-100 text-sm font-black">TB</span>
+                    <button class="table-card" data-table-id="{{ $table->id }}"
+                        data-table-name="Table {{ $table->number }}" data-held="{{ $activeOrder ? '1' : '0' }}"
+                        data-resume-url="{{ route('pos.resume', $table->id) }}">
+                        <span
+                            class="table-avatar grid size-12 place-items-center rounded-full bg-slate-100 text-sm font-black">TB</span>
 
-                            <span class="min-w-0">
-                                <strong>Table {{ $table->number }}</strong>
-                                <small>
-                                    {{ $activeOrder
+                        <span class="min-w-0">
+                            <strong>Table {{ $table->number }}</strong>
+                            <small>
+                                {{ $activeOrder
                         ? $statusLabel . ' - ' . $settings['currency_symbol'] . ' ' . number_format((float) $activeOrder->total, 2)
                         : $statusLabel }}
-                                </small>
-                            </span>
+                            </small>
+                        </span>
 
-                            <em class="status-pill {{ $status }}">{{ $statusLabel }}</em>
-                        </button>
+                        <em class="status-pill {{ $status }}">{{ $statusLabel }}</em>
+                    </button>
                     @endforeach
                 </div>
 
                 @if($takeawayHolds->isNotEmpty())
-                    <div class="mt-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-3">
-                        <div class="mb-2 flex items-center justify-between gap-3">
-                            <span class="text-xs font-black uppercase tracking-wide text-blue-700">Takeaway Holds</span>
-                            <span class="rounded-full bg-white px-2 py-1 text-[11px] font-black text-slate-500">{{ $takeawayHolds->count() }}</span>
-                        </div>
-
-                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            @foreach($takeawayHolds as $hold)
-                                @php
-                                    $statusLabel = $hold->status === 'payment_pending' ? 'Waiting Payment' : str($hold->status)->headline();
-                                @endphp
-
-                                <button class="takeaway-hold-card" type="button" data-takeaway-hold
-                                    data-hold-id="{{ $hold->id }}" data-resume-url="{{ route('pos.resume-held-order', $hold->id) }}">
-                                    <span class="min-w-0">
-                                        <strong>Takeaway #{{ $hold->id }}</strong>
-                                        <small>{{ $hold->customer_name ?? 'Walk-in Customer' }} - {{ $settings['currency_symbol'] }} {{ number_format((float) $hold->total, 2) }}</small>
-                                    </span>
-
-                                    <em class="status-pill {{ $hold->status }}">{{ $statusLabel }}</em>
-                                </button>
-                            @endforeach
-                        </div>
+                <div class="mt-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-3">
+                    <div class="mb-2 flex items-center justify-between gap-3">
+                        <span class="text-xs font-black uppercase tracking-wide text-blue-700">Takeaway Holds</span>
+                        <span class="rounded-full bg-white px-2 py-1 text-[11px] font-black text-slate-500">{{ $takeawayHolds->count() }}</span>
                     </div>
+
+                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        @foreach($takeawayHolds as $hold)
+                        @php
+                        $statusLabel = $hold->status === 'payment_pending' ? 'Waiting Payment' : str($hold->status)->headline();
+                        @endphp
+
+                        <button class="takeaway-hold-card" type="button" data-takeaway-hold
+                            data-hold-id="{{ $hold->id }}" data-resume-url="{{ route('pos.resume-held-order', $hold->id) }}">
+                            <span class="min-w-0">
+                                <strong>Takeaway #{{ $hold->id }}</strong>
+                                <small>{{ $hold->customer_name ?? 'Walk-in Customer' }} - {{ $settings['currency_symbol'] }} {{ number_format((float) $hold->total, 2) }}</small>
+                            </span>
+
+                            <em class="status-pill {{ $hold->status }}">{{ $statusLabel }}</em>
+                        </button>
+                        @endforeach
+                    </div>
+                </div>
                 @endif
             </div>
 
@@ -1082,7 +1086,7 @@
                     <select class="form-control max-w-56" data-category-filter>
                         <option value="all">All Categories</option>
                         @foreach($categories as $category)
-                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                        <option value="{{ $category->id }}">{{ $category->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -1092,10 +1096,10 @@
 
                 <div class="pos-menu-grid mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-5">
                     @foreach($products as $product)
-                        @php
-                            $isStockTracked = (bool) $product->maintain_stock;
-                            $isOutOfStock = $isStockTracked && (float) $product->stock_quantity <= 0;
-                            $isLowStock = $isStockTracked && ! $isOutOfStock && (float) $product->alert_quantity > (float) $product->stock_quantity;
+                    @php
+                    $isStockTracked = (bool) $product->maintain_stock;
+                    $isOutOfStock = $isStockTracked && (float) $product->stock_quantity <= 0;
+                        $isLowStock=$isStockTracked && ! $isOutOfStock && (float) $product->alert_quantity > (float) $product->stock_quantity;
                         @endphp
                         <article class="menu-card {{ $isOutOfStock ? 'stock-out' : ($isLowStock ? 'stock-low' : '') }}" data-category="{{ $product->category_id }}"
                             data-name="{{ str($product->name)->lower() }}" data-product='@json($product)'
@@ -1110,10 +1114,10 @@
                             </p>
 
                             @can('pos.add_item')
-                                <button class="add-item-btn" data-add-product type="button">+</button>
+                            <button class="add-item-btn" data-add-product type="button">+</button>
                             @endcan
                         </article>
-                    @endforeach
+                        @endforeach
                 </div>
             </div>
         </section>
@@ -1131,11 +1135,11 @@
 
             <div class="mt-4 grid grid-cols-3 gap-3">
                 @can('pos.hold_order')
-                    <button class="cart-action" data-hold type="button">Hold</button>
+                <button class="cart-action" data-hold type="button">Hold</button>
                 @endcan
 
                 @can('pos.transfer_table')
-                    <button class="cart-action" data-modal-open="transfer-modal" type="button">Transfer</button>
+                <button class="cart-action" data-modal-open="transfer-modal" type="button">Transfer</button>
                 @endcan
 
                 <button class="cart-action" data-clear type="button">Clear</button>
@@ -1152,14 +1156,14 @@
 
                         <div class="hidden" data-waiter-options>
                             @foreach($waiters as $waiter)
-                                <span data-id="{{ $waiter->id }}">{{ $waiter->name }}</span>
+                            <span data-id="{{ $waiter->id }}">{{ $waiter->name }}</span>
                             @endforeach
                         </div>
                     </div>
 
                     @can('waiters.create')
-                        <button type="button" class="pos-field-add pos-field-add-circle"
-                            data-modal-open="waiter-create-modal" aria-label="Add waiter">+</button>
+                    <button type="button" class="pos-field-add pos-field-add-circle"
+                        data-modal-open="waiter-create-modal" aria-label="Add waiter">+</button>
                     @endcan
                 </div>
             </div>
@@ -1175,15 +1179,15 @@
 
                         <div class="hidden" data-customer-options>
                             @foreach($customers as $customer)
-                                <span data-id="{{ $customer->id }}"
-                                    data-walk-in="{{ $customer->is_walk_in ? 1 : 0 }}">{{ $customer->name }}</span>
+                            <span data-id="{{ $customer->id }}"
+                                data-walk-in="{{ $customer->is_walk_in ? 1 : 0 }}">{{ $customer->name }}</span>
                             @endforeach
                         </div>
                     </div>
 
                     @can('customers.create')
-                        <button type="button" class="pos-field-add pos-field-add-circle"
-                            data-modal-open="customer-create-modal" aria-label="Add customer">+</button>
+                    <button type="button" class="pos-field-add pos-field-add-circle"
+                        data-modal-open="customer-create-modal" aria-label="Add customer">+</button>
                     @endcan
                 </div>
             </div>
@@ -1211,19 +1215,19 @@
             </label>
 
             @can('pos.bill_discount')
-                <div class="mt-4 grid gap-2 text-sm font-black text-slate-700">
-                    <span>Bill Discount</span>
+            <div class="mt-4 grid gap-2 text-sm font-black text-slate-700">
+                <span>Bill Discount</span>
 
-                    <div class="grid grid-cols-[150px_1fr] gap-3 max-sm:grid-cols-1">
-                        <select class="form-control" data-bill-discount-type>
-                            <option value="fixed" selected>Fix Amount</option>
-                            <option value="percent">Percentage</option>
-                        </select>
+                <div class="grid grid-cols-[150px_1fr] gap-3 max-sm:grid-cols-1">
+                    <select class="form-control" data-bill-discount-type>
+                        <option value="fixed" selected>Fix Amount</option>
+                        <option value="percent">Percentage</option>
+                    </select>
 
-                        <input class="form-control" type="number" step="0.01" min="0" data-bill-discount value="0"
-                            placeholder="Discount value">
-                    </div>
+                    <input class="form-control" type="number" step="0.01" min="0" data-bill-discount value="0"
+                        placeholder="Discount value">
                 </div>
+            </div>
             @endcan
 
             <div class="mt-5 space-y-2 rounded-2xl bg-slate-50 p-4 text-sm">
@@ -1251,12 +1255,12 @@
             <div class="mt-4">
                 <div class="grid gap-2" data-payment-action-wrap>
                     @can('pos.hold_order')
-                        <button class="btn-secondary hidden w-full justify-center border-red-200 bg-red-50 text-red-600 hover:border-red-300 hover:bg-red-100" data-cancel-hold type="button">Cancel Hold</button>
+                    <button class="btn-secondary hidden w-full justify-center border-red-200 bg-red-50 text-red-600 hover:border-red-300 hover:bg-red-100" data-cancel-hold type="button">Cancel Hold</button>
                     @endcan
 
                     @can('pos.payment')
-                        <button class="btn-success w-full justify-center" data-modal-open="payment-modal" type="button">Proceed to
-                            Payment</button>
+                    <button class="btn-success w-full justify-center" data-modal-open="payment-modal" type="button">Proceed to
+                        Payment</button>
                     @endcan
                 </div>
             </div>
@@ -1267,27 +1271,27 @@
         style="--receipt-width: {{ $receiptWidth }};">
         <div style="text-align: center;">
             @if(($settings['invoice_show_logo'] ?? true) && ! empty($settings['business_logo']))
-                <img src="{{ asset('storage/'.$settings['business_logo']) }}" alt="{{ $settings['business_name'] }}"
-                    style="display: block; width: 18mm; height: 18mm; object-fit: contain; margin: 0 auto 4px;">
+            <img src="{{ asset('storage/'.$settings['business_logo']) }}" alt="{{ $settings['business_name'] }}"
+                style="display: block; width: 18mm; height: 18mm; object-fit: contain; margin: 0 auto 4px;">
             @endif
 
             <h1>{{ $settings['business_name'] }}</h1>
             @if(! empty($settings['business_tagline']))
-                <p style="margin: 2px 0 0; font-size: 10px; font-weight: 700; color: #475569;">{{ $settings['business_tagline'] }}</p>
+            <p style="margin: 2px 0 0; font-size: 10px; font-weight: 700; color: #475569;">{{ $settings['business_tagline'] }}</p>
             @endif
             @if(! empty($settings['business_address']))
-                <p style="margin: 2px 0 0; font-size: 9.5px; color: #64748b;">{{ $settings['business_address'] }}</p>
+            <p style="margin: 2px 0 0; font-size: 9.5px; color: #64748b;">{{ $settings['business_address'] }}</p>
             @endif
             @if(! empty($settings['business_phone']))
-                @php
-                    $businessPhones = collect(preg_split('/[\r\n,|\/]+/', $settings['business_phone']))
-                        ->map(fn ($phone) => trim($phone))
-                        ->filter()
-                        ->implode(' / ');
-                @endphp
-                @if($businessPhones !== '')
-                    <p style="margin: 2px 0 0; font-size: 9.5px; font-weight: 700; color: #64748b;">Phone: {{ $businessPhones }}</p>
-                @endif
+            @php
+            $businessPhones = collect(preg_split('/[\r\n,|\/]+/', $settings['business_phone']))
+            ->map(fn ($phone) => trim($phone))
+            ->filter()
+            ->implode(' / ');
+            @endphp
+            @if($businessPhones !== '')
+            <p style="margin: 2px 0 0; font-size: 9.5px; font-weight: 700; color: #64748b;">Phone: {{ $businessPhones }}</p>
+            @endif
             @endif
             <p style="display: inline-block; margin: 7px 0 10px; border-radius: 999px; background: #eff6ff; padding: 3px 10px; color: #1d4ed8; font-size: 10px; font-weight: 900;"
                 data-print-bill-title>Pre-payment bill</p>
@@ -1295,10 +1299,10 @@
 
         <div style="display: grid; gap: 3px;">
             @if($settings['invoice_show_table'] ?? true)
-                <div class="receipt-line">
-                    <span>Table</span>
-                    <strong data-print-table>-</strong>
-                </div>
+            <div class="receipt-line">
+                <span>Table</span>
+                <strong data-print-table>-</strong>
+            </div>
             @endif
             <div class="receipt-line">
                 <span>Invoice</span>
@@ -1309,16 +1313,16 @@
                 <strong data-print-payment>-</strong>
             </div>
             @if($settings['invoice_show_waiter'] ?? true)
-                <div class="receipt-line">
-                    <span>Waiter</span>
-                    <strong data-print-waiter>-</strong>
-                </div>
+            <div class="receipt-line">
+                <span>Waiter</span>
+                <strong data-print-waiter>-</strong>
+            </div>
             @endif
             @if($settings['invoice_show_customer'] ?? true)
-                <div class="receipt-line">
-                    <span>Customer</span>
-                    <strong data-print-customer>-</strong>
-                </div>
+            <div class="receipt-line">
+                <span>Customer</span>
+                <strong data-print-customer>-</strong>
+            </div>
             @endif
             <div class="receipt-line">
                 <span>Date</span>
@@ -1378,7 +1382,7 @@
             {{ $settings['invoice_footer_text'] ?: 'Thank you. Please keep this bill for payment.' }}
         </p>
         @if(! empty($settings['invoice_terms']))
-            <p style="margin: 6px 0 0; text-align: center; font-size: 9px; color: #64748b;">{{ $settings['invoice_terms'] }}</p>
+        <p style="margin: 6px 0 0; text-align: center; font-size: 9px; color: #64748b;">{{ $settings['invoice_terms'] }}</p>
         @endif
     </section>
 
@@ -1398,7 +1402,7 @@
 
             <div data-payment-print-action>
                 @can('pos.print_bill')
-                    <button class="btn-secondary w-full justify-center" data-print type="button">Print Bill</button>
+                <button class="btn-secondary w-full justify-center" data-print type="button">Print Bill</button>
                 @endcan
             </div>
 
@@ -1411,24 +1415,24 @@
 
             <div class="mt-5 grid grid-cols-2 gap-3">
                 @foreach(['cash' => 'Cash', 'card' => 'Card', 'qr' => 'QR', 'due' => 'Due'] as $method => $label)
-                    @can("pos.$method" . '_payment')
-                        <button class="payment-method {{ $method === 'cash' ? 'active' : '' }}"
-                            data-payment-method="{{ $method }}" type="button">{{ $label }}</button>
-                    @elsecan('pos.payment')
-                        @if($method === 'due')
-                            <button class="payment-method" data-payment-method="{{ $method }}" type="button">Due</button>
-                        @endif
-                    @endcan
+                @can("pos.$method" . '_payment')
+                <button class="payment-method {{ $method === 'cash' ? 'active' : '' }}"
+                    data-payment-method="{{ $method }}" type="button">{{ $label }}</button>
+                @elsecan('pos.payment')
+                @if($method === 'due')
+                <button class="payment-method" data-payment-method="{{ $method }}" type="button">Due</button>
+                @endif
+                @endcan
                 @endforeach
             </div>
 
             <div class="mt-3 hidden rounded-2xl border border-blue-100 bg-blue-50 p-3" data-qr-payment-action>
                 @if($settings['pos_qr_code_image'])
-                    <button class="btn-secondary w-full justify-center border-blue-200 bg-white text-blue-700 hover:bg-blue-100" data-modal-open="qr-code-modal" type="button">
-                        Show QR Code
-                    </button>
+                <button class="btn-secondary w-full justify-center border-blue-200 bg-white text-blue-700 hover:bg-blue-100" data-modal-open="qr-code-modal" type="button">
+                    Show QR Code
+                </button>
                 @else
-                    <p class="text-center text-xs font-black text-blue-700">Upload a QR code image in POS Settings first.</p>
+                <p class="text-center text-xs font-black text-blue-700">Upload a QR code image in POS Settings first.</p>
                 @endif
             </div>
 
@@ -1457,13 +1461,13 @@
             <p class="mt-1 text-sm font-semibold text-slate-500">Ask the customer to scan this code and complete the payment.</p>
 
             @if($settings['pos_qr_code_image'])
-                <div class="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-                    <img class="mx-auto max-h-72 w-full max-w-72 rounded-xl object-contain" src="{{ asset('storage/'.$settings['pos_qr_code_image']) }}" alt="Payment QR code">
-                </div>
+            <div class="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                <img class="mx-auto max-h-72 w-full max-w-72 rounded-xl object-contain" src="{{ asset('storage/'.$settings['pos_qr_code_image']) }}" alt="Payment QR code">
+            </div>
             @else
-                <div class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-black text-amber-800">
-                    No QR code image uploaded.
-                </div>
+            <div class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-black text-amber-800">
+                No QR code image uploaded.
+            </div>
             @endif
 
             <button class="btn-primary mt-5 w-full justify-center" data-modal-close type="button">Done</button>
@@ -1519,7 +1523,7 @@
 
             <select class="form-control mt-5" data-transfer-table>
                 @foreach($tables->where('status', 'available') as $table)
-                    <option value="{{ $table->id }}">Table {{ $table->number }}</option>
+                <option value="{{ $table->id }}">Table {{ $table->number }}</option>
                 @endforeach
             </select>
 
@@ -1528,139 +1532,139 @@
     </div>
 
     @can('pos.payment')
-        <div id="customer-due-payment-modal" class="modal">
-            <div class="modal-panel">
-                <button class="modal-close" data-modal-close type="button">×</button>
+    <div id="customer-due-payment-modal" class="modal">
+        <div class="modal-panel">
+            <button class="modal-close" data-modal-close type="button">×</button>
 
-                <h2 class="text-2xl font-black text-slate-950">Receive Due Payment</h2>
-                <p class="mt-1 text-sm font-semibold text-slate-500">Search a due customer and record the amount received today.</p>
+            <h2 class="text-2xl font-black text-slate-950">Receive Due Payment</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-500">Search a due customer and record the amount received today.</p>
 
-                <div class="mt-4 grid gap-3" data-due-payment-modal="customer">
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Customer
-                        <input class="form-control" type="search" data-due-search placeholder="Search by name or phone">
-                    </label>
+            <div class="mt-4 grid gap-3" data-due-payment-modal="customer">
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Customer
+                    <input class="form-control" type="search" data-due-search placeholder="Search by name or phone">
+                </label>
 
-                    <div class="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2" data-due-results></div>
+                <div class="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2" data-due-results></div>
 
-                    <input type="hidden" data-due-selected-id>
+                <input type="hidden" data-due-selected-id>
 
-                    <div class="grid gap-2 rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-black text-slate-700">
-                        <div class="flex items-center justify-between gap-3">
-                            <span>Total Due</span>
-                            <strong class="text-blue-700" data-due-total>Rs. 0.00</strong>
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <span>Remaining Due</span>
-                            <strong class="text-slate-900" data-due-remaining>Rs. 0.00</strong>
-                        </div>
-                        <div class="flex items-center justify-between gap-3 text-xs text-slate-500">
-                            <span>Date</span>
-                            <span data-due-date>{{ now()->toDateString() }}</span>
-                        </div>
+                <div class="grid gap-2 rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-black text-slate-700">
+                    <div class="flex items-center justify-between gap-3">
+                        <span>Total Due</span>
+                        <strong class="text-blue-700" data-due-total>Rs. 0.00</strong>
                     </div>
-
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Amount Received
-                        <input class="form-control" type="number" step="0.01" min="0" data-due-amount placeholder="0.00">
-                    </label>
-
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Payment Method
-                        <select class="form-control" data-due-payment-method>
-                            <option value="cash">Cash Drawer</option>
-                            <option value="bank">Bank Transfer</option>
-                            <option value="card">Card Payment</option>
-                            <option value="qr">QR Payment</option>
-                        </select>
-                    </label>
-
-                    <label class="hidden gap-2 text-sm font-black text-slate-700" data-due-bank-wrap>
-                        Bank Account
-                        <select class="form-control" data-due-bank-account>
-                            @foreach($bankAccounts as $account)
-                                <option value="{{ $account->id }}" @selected($account->is_default)>
-                                    {{ $account->name }}{{ $account->account_no ? ' - '.$account->account_no : '' }}{{ $account->is_default ? ' (Default)' : '' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </label>
-
-                    <div class="flex gap-3">
-                        <button class="btn-secondary flex-1" data-due-cancel type="button">Cancel</button>
-                        <button class="btn-primary flex-1" data-due-save type="button">Save Payment</button>
+                    <div class="flex items-center justify-between gap-3">
+                        <span>Remaining Due</span>
+                        <strong class="text-slate-900" data-due-remaining>Rs. 0.00</strong>
                     </div>
+                    <div class="flex items-center justify-between gap-3 text-xs text-slate-500">
+                        <span>Date</span>
+                        <span data-due-date>{{ now()->toDateString() }}</span>
+                    </div>
+                </div>
+
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Amount Received
+                    <input class="form-control" type="number" step="0.01" min="0" data-due-amount placeholder="0.00">
+                </label>
+
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Payment Method
+                    <select class="form-control" data-due-payment-method>
+                        <option value="cash">Cash Drawer</option>
+                        <option value="bank">Bank Transfer</option>
+                        <option value="card">Card Payment</option>
+                        <option value="qr">QR Payment</option>
+                    </select>
+                </label>
+
+                <label class="hidden gap-2 text-sm font-black text-slate-700" data-due-bank-wrap>
+                    Bank Account
+                    <select class="form-control" data-due-bank-account>
+                        @foreach($bankAccounts as $account)
+                        <option value="{{ $account->id }}" @selected($account->is_default)>
+                            {{ $account->name }}{{ $account->account_no ? ' - '.$account->account_no : '' }}{{ $account->is_default ? ' (Default)' : '' }}
+                        </option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <div class="flex gap-3">
+                    <button class="btn-secondary flex-1" data-due-cancel type="button">Cancel</button>
+                    <button class="btn-primary flex-1" data-due-save type="button">Save Payment</button>
                 </div>
             </div>
         </div>
+    </div>
     @endcan
 
     @can('purchases.edit')
-        <div id="supplier-payment-modal" class="modal">
-            <div class="modal-panel">
-                <button class="modal-close" data-modal-close type="button">×</button>
+    <div id="supplier-payment-modal" class="modal">
+        <div class="modal-panel">
+            <button class="modal-close" data-modal-close type="button">×</button>
 
-                <h2 class="text-2xl font-black text-slate-950">Pay Supplier</h2>
-                <p class="mt-1 text-sm font-semibold text-slate-500">Search a supplier and record the amount paid today.</p>
+            <h2 class="text-2xl font-black text-slate-950">Pay Supplier</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-500">Search a supplier and record the amount paid today.</p>
 
-                <div class="mt-4 grid gap-3" data-due-payment-modal="supplier">
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Supplier
-                        <input class="form-control" type="search" data-due-search placeholder="Search by name or phone">
-                    </label>
+            <div class="mt-4 grid gap-3" data-due-payment-modal="supplier">
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Supplier
+                    <input class="form-control" type="search" data-due-search placeholder="Search by name or phone">
+                </label>
 
-                    <div class="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2" data-due-results></div>
+                <div class="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2" data-due-results></div>
 
-                    <input type="hidden" data-due-selected-id>
+                <input type="hidden" data-due-selected-id>
 
-                    <div class="grid gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm font-black text-slate-700">
-                        <div class="flex items-center justify-between gap-3">
-                            <span>Total Due</span>
-                            <strong class="text-amber-700" data-due-total>Rs. 0.00</strong>
-                        </div>
-                        <div class="flex items-center justify-between gap-3">
-                            <span>Remaining Due</span>
-                            <strong class="text-slate-900" data-due-remaining>Rs. 0.00</strong>
-                        </div>
-                        <div class="flex items-center justify-between gap-3 text-xs text-slate-500">
-                            <span>Date</span>
-                            <span data-due-date>{{ now()->toDateString() }}</span>
-                        </div>
+                <div class="grid gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm font-black text-slate-700">
+                    <div class="flex items-center justify-between gap-3">
+                        <span>Total Due</span>
+                        <strong class="text-amber-700" data-due-total>Rs. 0.00</strong>
                     </div>
-
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Amount Paid
-                        <input class="form-control" type="number" step="0.01" min="0" data-due-amount placeholder="0.00">
-                    </label>
-
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Payment Method
-                        <select class="form-control" data-due-payment-method>
-                            <option value="cash">Cash Drawer</option>
-                            <option value="bank">Bank Transfer</option>
-                            <option value="card">Card Payment</option>
-                            <option value="qr">QR Payment</option>
-                        </select>
-                    </label>
-
-                    <label class="hidden gap-2 text-sm font-black text-slate-700" data-due-bank-wrap>
-                        Bank Account
-                        <select class="form-control" data-due-bank-account>
-                            @foreach($bankAccounts as $account)
-                                <option value="{{ $account->id }}" @selected($account->is_default)>
-                                    {{ $account->name }}{{ $account->account_no ? ' - '.$account->account_no : '' }}{{ $account->is_default ? ' (Default)' : '' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </label>
-
-                    <div class="flex gap-3">
-                        <button class="btn-secondary flex-1" data-due-cancel type="button">Cancel</button>
-                        <button class="btn-primary flex-1" data-due-save type="button">Save Payment</button>
+                    <div class="flex items-center justify-between gap-3">
+                        <span>Remaining Due</span>
+                        <strong class="text-slate-900" data-due-remaining>Rs. 0.00</strong>
                     </div>
+                    <div class="flex items-center justify-between gap-3 text-xs text-slate-500">
+                        <span>Date</span>
+                        <span data-due-date>{{ now()->toDateString() }}</span>
+                    </div>
+                </div>
+
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Amount Paid
+                    <input class="form-control" type="number" step="0.01" min="0" data-due-amount placeholder="0.00">
+                </label>
+
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Payment Method
+                    <select class="form-control" data-due-payment-method>
+                        <option value="cash">Cash Drawer</option>
+                        <option value="bank">Bank Transfer</option>
+                        <option value="card">Card Payment</option>
+                        <option value="qr">QR Payment</option>
+                    </select>
+                </label>
+
+                <label class="hidden gap-2 text-sm font-black text-slate-700" data-due-bank-wrap>
+                    Bank Account
+                    <select class="form-control" data-due-bank-account>
+                        @foreach($bankAccounts as $account)
+                        <option value="{{ $account->id }}" @selected($account->is_default)>
+                            {{ $account->name }}{{ $account->account_no ? ' - '.$account->account_no : '' }}{{ $account->is_default ? ' (Default)' : '' }}
+                        </option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <div class="flex gap-3">
+                    <button class="btn-secondary flex-1" data-due-cancel type="button">Cancel</button>
+                    <button class="btn-primary flex-1" data-due-save type="button">Save Payment</button>
                 </div>
             </div>
         </div>
+    </div>
     @endcan
 
     <!-- Add Expense Modal -->
@@ -1678,13 +1682,13 @@
                         <select class="form-control flex-1" data-expense-category required>
                             <option value="">-- Select Category --</option>
                             @forelse($expenseCategories as $cat)
-                                <option value="{{ $cat->id }}" data-name="{{ $cat->name }}">{{ $cat->name }}</option>
+                            <option value="{{ $cat->id }}" data-name="{{ $cat->name }}">{{ $cat->name }}</option>
                             @empty
-                                <option value="supplies">Supplies</option>
-                                <option value="fuel">Fuel</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="utilities">Utilities</option>
-                                <option value="other">Other</option>
+                            <option value="supplies">Supplies</option>
+                            <option value="fuel">Fuel</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="utilities">Utilities</option>
+                            <option value="other">Other</option>
                             @endforelse
                         </select>
                         <button type="button" class="pos-field-add pos-field-add-circle" data-add-category aria-label="Add category">+</button>
@@ -1708,9 +1712,9 @@
                     Bank Account
                     <select class="form-control" data-expense-bank-account>
                         @foreach($bankAccounts as $account)
-                            <option value="{{ $account->id }}" @selected($account->is_default)>
-                                {{ $account->name }}{{ $account->account_no ? ' - '.$account->account_no : '' }}{{ $account->is_default ? ' (Default)' : '' }}
-                            </option>
+                        <option value="{{ $account->id }}" @selected($account->is_default)>
+                            {{ $account->name }}{{ $account->account_no ? ' - '.$account->account_no : '' }}{{ $account->is_default ? ' (Default)' : '' }}
+                        </option>
                         @endforeach
                     </select>
                 </label>
@@ -1788,194 +1792,199 @@
     </div>
 
     @can('waiters.create')
-        <div id="waiter-create-modal" class="modal">
-            <div class="modal-panel">
-                <button class="modal-close" data-modal-close type="button">×</button>
+    <div id="waiter-create-modal" class="modal">
+        <div class="modal-panel">
+            <button class="modal-close" data-modal-close type="button">×</button>
 
-                <h2 class="text-2xl font-black text-slate-950">Add Waiter</h2>
-                <p class="mt-1 text-sm font-semibold text-slate-500">Quickly create a waiter without leaving POS.</p>
+            <h2 class="text-2xl font-black text-slate-950">Add Waiter</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-500">Quickly create a waiter without leaving POS.</p>
 
-                <form class="mt-4 grid gap-3" data-quick-create-waiter>
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Name
-                        <input class="form-control" type="text" name="name" required placeholder="Waiter name">
-                    </label>
+            <form class="mt-4 grid gap-3" data-quick-create-waiter>
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Name
+                    <input class="form-control" type="text" name="name" required placeholder="Waiter name">
+                </label>
 
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Phone
-                        <input class="form-control" type="text" name="phone" placeholder="Phone optional">
-                    </label>
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Phone
+                    <input class="form-control" type="text" name="phone" placeholder="Phone optional">
+                </label>
 
-                    <button class="btn-primary mt-2 w-full justify-center" type="submit">Save Waiter</button>
-                </form>
-            </div>
+                <button class="btn-primary mt-2 w-full justify-center" type="submit">Save Waiter</button>
+            </form>
         </div>
+    </div>
     @endcan
 
     @can('customers.create')
-        <div id="customer-create-modal" class="modal">
-            <div class="modal-panel">
-                <button class="modal-close" data-modal-close type="button">×</button>
+    <div id="customer-create-modal" class="modal">
+        <div class="modal-panel">
+            <button class="modal-close" data-modal-close type="button">×</button>
 
-                <h2 class="text-2xl font-black text-slate-950">Add Customer</h2>
-                <p class="mt-1 text-sm font-semibold text-slate-500">Quickly create a customer without leaving POS.</p>
+            <h2 class="text-2xl font-black text-slate-950">Add Customer</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-500">Quickly create a customer without leaving POS.</p>
 
-                <form class="mt-4 grid gap-3" data-quick-create-customer>
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Name
-                        <input class="form-control" type="text" name="name" required placeholder="Customer name">
-                    </label>
+            <form class="mt-4 grid gap-3" data-quick-create-customer>
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Name
+                    <input class="form-control" type="text" name="name" required placeholder="Customer name">
+                </label>
 
-                    <label class="grid gap-2 text-sm font-black text-slate-700">
-                        Phone
-                        <input class="form-control" type="text" name="phone" placeholder="Phone optional">
-                    </label>
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Phone
+                    <input class="form-control" type="text" name="phone" placeholder="Phone optional">
+                </label>
 
-                    <button class="btn-primary mt-2 w-full justify-center" type="submit">Save Customer</button>
-                </form>
-            </div>
+                <button class="btn-primary mt-2 w-full justify-center" type="submit">Save Customer</button>
+            </form>
         </div>
+    </div>
     @endcan
 
     @can('pos.close_register')
-        <!-- Close Register Summary Modal -->
-        <div class="fixed inset-0 z-40 hidden items-center justify-center bg-black/50 p-3" data-close-register-modal>
-            <div class="max-h-[calc(100vh-1.5rem)] w-full max-w-5xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl">
-                <h2 class="mb-3 text-lg font-black text-slate-900">Close Register - Summary</h2>
-                
-                <div class="mb-4 grid gap-4 lg:grid-cols-3">
-                    <div class="lg:col-span-2 grid gap-3">
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <div class="rounded-lg border border-slate-200 p-3 bg-white shadow-sm">
-                                <p class="text-xs font-semibold text-slate-600">Cash in Cashier</p>
-                                <p class="mt-1 text-xl font-black text-slate-900" data-cash-in-cashier>Rs. 0.00</p>
-                            </div>
+    <!-- Close Register Summary Modal -->
+    <div class="fixed inset-0 z-40 hidden items-center justify-center bg-black/50 p-3" data-close-register-modal>
+        <div class="max-h-[calc(100vh-1.5rem)] w-full max-w-5xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl">
+            <h2 class="mb-3 text-lg font-black text-slate-900">Close Register - Summary</h2>
 
-                            <div class="rounded-lg border border-slate-200 p-3 bg-white shadow-sm">
-                                <p class="text-xs font-semibold text-slate-600">Bank Amount</p>
-                                <p class="mt-1 text-xl font-black text-slate-900" data-bank-amount>Rs. 0.00</p>
-                            </div>
+            <div class="mb-4 grid gap-4 lg:grid-cols-3">
+                <div class="lg:col-span-2 grid gap-3">
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="rounded-lg border border-slate-200 p-3 bg-white shadow-sm">
+                            <p class="text-xs font-semibold text-slate-600">Cash in Cashier</p>
+                            <p class="mt-1 text-xl font-black text-slate-900" data-cash-in-cashier>Rs. 0.00</p>
                         </div>
-                        
-                        <div class="grid grid-cols-3 gap-2">
-                            <div class="rounded-lg bg-blue-50 p-2.5">
-                                <p class="text-xs font-semibold text-slate-600">Total Orders</p>
-                                <p class="mt-1 text-base font-black text-blue-600" data-total-orders>0</p>
-                            </div>
-                            
-                            <div class="rounded-lg bg-emerald-50 p-2.5">
-                                <p class="text-xs font-semibold text-slate-600">Tables Served</p>
-                                <p class="mt-1 text-base font-black text-emerald-600" data-tables-served>0</p>
-                            </div>
-                            
-                            <div class="rounded-lg bg-orange-50 p-2.5">
-                                <p class="text-xs font-semibold text-slate-600">Takeaways</p>
-                                <p class="mt-1 text-base font-black text-orange-600" data-takeaway-orders>0</p>
-                            </div>
+
+                        <div class="rounded-lg border border-slate-200 p-3 bg-white shadow-sm">
+                            <p class="text-xs font-semibold text-slate-600">Total Cash Sales</p>
+                            <p class="mt-1 text-xl font-black text-emerald-600" data-total-cash-sales>Rs. 0.00</p>
+                        </div>
+
+                        <div class="rounded-lg border border-slate-200 p-3 bg-white shadow-sm">
+                            <p class="text-xs font-semibold text-slate-600">Bank Amount</p>
+                            <p class="mt-1 text-xl font-black text-slate-900" data-bank-amount>Rs. 0.00</p>
                         </div>
                     </div>
 
-                    <!-- Overall Cash Book Summary -->
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3.5 flex flex-col justify-between shadow-sm">
-                        <div>
-                            <h3 class="text-xs font-black uppercase tracking-wider text-slate-600 mb-2.5">Overall Cash Balance</h3>
-                            <div class="space-y-1.5 text-xs font-semibold text-slate-600">
-                                <div class="flex justify-between">
-                                    <span>Total Cash Balance (Before)</span>
-                                    <span class="text-slate-900 font-bold" data-overall-cash-before>Rs. 0.00</span>
-                                </div>
-                                <div class="flex justify-between border-t border-slate-200/50 pt-1.5">
-                                    <span>Drawer Open Balance (+)</span>
-                                    <span class="text-slate-900" data-overall-cash-opening>Rs. 0.00</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span>Total Sale Cash (+)</span>
-                                    <span class="text-emerald-600" data-overall-cash-sales>Rs. 0.00</span>
-                                </div>
-                                <div class="flex justify-between pb-1.5">
-                                    <span>Total Expense Amount (-)</span>
-                                    <span class="text-red-600" data-overall-cash-expenses>Rs. 0.00</span>
-                                </div>
-                            </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="rounded-lg bg-blue-50 p-2.5">
+                            <p class="text-xs font-semibold text-slate-600">Total Orders</p>
+                            <p class="mt-1 text-base font-black text-blue-600" data-total-orders>0</p>
                         </div>
-                        <div class="flex justify-between border-t border-slate-200 pt-2 text-sm font-black text-slate-900">
-                            <span>Total Cash Balance (Now)</span>
-                            <span class="text-blue-600 font-bold" data-overall-cash-now>Rs. 0.00</span>
+
+                        <div class="rounded-lg bg-emerald-50 p-2.5">
+                            <p class="text-xs font-semibold text-slate-600">Tables Served</p>
+                            <p class="mt-1 text-base font-black text-emerald-600" data-tables-served>0</p>
+                        </div>
+
+                        <div class="rounded-lg bg-orange-50 p-2.5">
+                            <p class="text-xs font-semibold text-slate-600">Takeaways</p>
+                            <p class="mt-1 text-base font-black text-orange-600" data-takeaway-orders>0</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-4 grid gap-3 sm:grid-cols-2">
-                    <label class="grid gap-1.5 text-xs font-black text-slate-700">
-                        Actual Cash Drawer Balance
-                        <input class="form-control" type="number" step="0.01" min="0" data-modal-actual-cash placeholder="0.00" required>
-                    </label>
-
-                    <label class="grid gap-1.5 text-xs font-black text-slate-700">
-                        Actual Bank Balance
-                        <input class="form-control" type="number" step="0.01" min="0" data-modal-actual-bank placeholder="0.00" required>
-                    </label>
-                </div>
-
-                <div class="mb-4 grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-xs font-black uppercase tracking-wide text-slate-500" data-close-difference-label>Cash Balanced</p>
-                        <p class="mt-1 text-base font-black text-slate-700" data-close-difference-amount>Rs. 0.00</p>
+                <!-- Overall Cash Book Summary -->
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3.5 flex flex-col justify-between shadow-sm">
+                    <div>
+                        <h3 class="text-xs font-black uppercase tracking-wider text-slate-600 mb-2.5">Overall Cash Balance</h3>
+                        <div class="space-y-1.5 text-xs font-semibold text-slate-600">
+                            <div class="flex justify-between">
+                                <span>Total Cash Balance (Before)</span>
+                                <span class="text-slate-900 font-bold" data-overall-cash-before>Rs. 0.00</span>
+                            </div>
+                            <div class="flex justify-between border-t border-slate-200/50 pt-1.5">
+                                <span>Drawer Open Balance (+)</span>
+                                <span class="text-slate-900" data-overall-cash-opening>Rs. 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Total Sale Cash (+)</span>
+                                <span class="text-emerald-600" data-overall-cash-sales>Rs. 0.00</span>
+                            </div>
+                            <div class="flex justify-between pb-1.5">
+                                <span>Total Expense Amount (-)</span>
+                                <span class="text-red-600" data-overall-cash-expenses>Rs. 0.00</span>
+                            </div>
+                        </div>
                     </div>
-
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <p class="text-xs font-black uppercase tracking-wide text-slate-500" data-bank-difference-label>Bank Balanced</p>
-                        <p class="mt-1 text-base font-black text-slate-700" data-bank-difference-amount>Rs. 0.00</p>
+                    <div class="flex justify-between border-t border-slate-200 pt-2 text-sm font-black text-slate-900">
+                        <span>Total Cash Balance (Now)</span>
+                        <span class="text-blue-600 font-bold" data-overall-cash-now>Rs. 0.00</span>
                     </div>
-                </div>
-
-                <div class="mb-4 flex justify-end">
-                    <a href="{{ route('pos.register.close-cash-book.pdf') }}" class="btn-secondary justify-center" target="_blank">
-                        <x-lucide name="file-text" class="size-4" />
-                        <span>Download Cash Book PDF</span>
-                    </a>
-                </div>
-
-                <!-- Expenses Section -->
-                <div class="mb-4 hidden rounded-lg border border-amber-200 bg-amber-50 p-3" data-close-expenses-wrap>
-                    <p class="mb-2 text-xs font-black uppercase tracking-wide text-amber-800">Expenses</p>
-                    <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-3" data-close-expenses-list></div>
-                </div>
-
-                <div class="mb-4 hidden" data-close-note-wrap>
-                    <label class="grid gap-1.5 text-xs font-black text-slate-700">
-                        Notes (Optional)
-                        <textarea class="form-control min-h-16" data-close-note placeholder="Add reason for shortage/overage (optional)"></textarea>
-                    </label>
-                </div>
-                
-                <div class="sticky bottom-0 -mx-4 -mb-4 flex gap-3 border-t border-slate-100 bg-white p-4">
-                    <button type="button" class="btn-secondary flex-1" data-close-register-modal-cancel>Cancel</button>
-                    <button type="button" class="btn-primary flex-1" data-close-register-modal-submit>Close Register</button>
                 </div>
             </div>
-        </div>
 
-        <form method="POST" action="{{ route('pos.register.close') }}" class="pos-close-register-form fixed bottom-4 right-4 z-30">
-            @csrf
-            <input type="hidden" name="actual_cash" value="0" data-actual-cash>
-            <input type="hidden" name="note" value="" data-close-note-hidden>
-            <button class="pos-close-register px-5 py-3 text-sm font-black text-white shadow-xl" data-close-register>
-                Close Register
-            </button>
-        </form>
+            <div class="mb-4 grid gap-3 sm:grid-cols-2">
+                <label class="grid gap-1.5 text-xs font-black text-slate-700">
+                    Actual Cash Drawer Balance
+                    <input class="form-control" type="number" step="0.01" min="0" data-modal-actual-cash placeholder="0.00" required>
+                </label>
+
+                <label class="grid gap-1.5 text-xs font-black text-slate-700">
+                    Actual Bank Balance
+                    <input class="form-control" type="number" step="0.01" min="0" data-modal-actual-bank placeholder="0.00" required>
+                </label>
+            </div>
+
+            <div class="mb-4 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs font-black uppercase tracking-wide text-slate-500" data-close-difference-label>Cash Balanced</p>
+                    <p class="mt-1 text-base font-black text-slate-700" data-close-difference-amount>Rs. 0.00</p>
+                </div>
+
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs font-black uppercase tracking-wide text-slate-500" data-bank-difference-label>Bank Balanced</p>
+                    <p class="mt-1 text-base font-black text-slate-700" data-bank-difference-amount>Rs. 0.00</p>
+                </div>
+            </div>
+
+            <div class="mb-4 flex justify-end">
+                <a href="{{ route('pos.register.close-cash-book.pdf') }}" class="btn-secondary justify-center" target="_blank">
+                    <x-lucide name="file-text" class="size-4" />
+                    <span>Download Cash Book PDF</span>
+                </a>
+            </div>
+
+            <!-- Expenses Section -->
+            <div class="mb-4 hidden rounded-lg border border-amber-200 bg-amber-50 p-3" data-close-expenses-wrap>
+                <p class="mb-2 text-xs font-black uppercase tracking-wide text-amber-800">Expenses</p>
+                <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-3" data-close-expenses-list></div>
+            </div>
+
+            <div class="mb-4 hidden" data-close-note-wrap>
+                <label class="grid gap-1.5 text-xs font-black text-slate-700">
+                    Notes (Optional)
+                    <textarea class="form-control min-h-16" data-close-note placeholder="Add reason for shortage/overage (optional)"></textarea>
+                </label>
+            </div>
+
+            <div class="sticky bottom-0 -mx-4 -mb-4 flex gap-3 border-t border-slate-100 bg-white p-4">
+                <button type="button" class="btn-secondary flex-1" data-close-register-modal-cancel>Cancel</button>
+                <button type="button" class="btn-primary flex-1" data-close-register-modal-submit>Close Register</button>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('pos.register.close') }}" class="pos-close-register-form fixed bottom-4 right-4 z-30">
+        @csrf
+        <input type="hidden" name="actual_cash" value="0" data-actual-cash>
+        <input type="hidden" name="note" value="" data-close-note-hidden>
+        <button class="pos-close-register px-5 py-3 text-sm font-black text-white shadow-xl" data-close-register>
+            Close Register
+        </button>
+    </form>
     @endcan
 
     @if(session('show_close_register'))
-        @push('scripts')
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    const closeRegisterBtn = document.querySelector('[data-close-register]');
-                    if (closeRegisterBtn) {
-                        closeRegisterBtn.click();
-                    }
-                });
-            </script>
-        @endpush
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const closeRegisterBtn = document.querySelector('[data-close-register]');
+            if (closeRegisterBtn) {
+                closeRegisterBtn.click();
+            }
+        });
+    </script>
+    @endpush
     @endif
 </x-layouts.app>

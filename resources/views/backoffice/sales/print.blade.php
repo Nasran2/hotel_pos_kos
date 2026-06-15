@@ -1,30 +1,29 @@
 @php
-    $receiptPaperSize = $settings['invoice_paper_size'] ?? '80mm';
-    $receiptWidth = match (strtolower((string) $receiptPaperSize)) {
-        '58mm' => '58mm',
-        'a4' => '210mm',
-        'a5' => '148mm',
-        default => '80mm',
-    };
+$receiptPaperSize = $settings['invoice_paper_size'] ?? '80mm';
+$receiptPrintableWidth = match (strtolower((string) $receiptPaperSize)) {
+'58mm' => '48mm',
+default => '72mm',
+};
 
-    $currency = $settings['currency_symbol'] ?? 'Rs.';
-    $money = fn ($amount) => $currency.' '.number_format((float) $amount, 2);
-    $businessPhones = collect(preg_split('/[\r\n,|\/]+/', (string) ($settings['business_phone'] ?? '')))
-        ->map(fn ($phone) => trim($phone))
-        ->filter()
-        ->implode(' / ');
-    $paymentLabel = $payments
-        ->pluck('payment_method')
-        ->filter()
-        ->unique()
-        ->map(fn ($method) => str((string) $method)->headline()->toString())
-        ->implode(', ');
-    $receivedAmount = $payments->sum(fn ($payment) => (float) ($payment->received_amount ?? $payment->amount ?? 0));
-    $changeAmount = $payments->sum(fn ($payment) => (float) ($payment->change_amount ?? 0));
+$currency = $settings['currency_symbol'] ?? 'Rs.';
+$money = fn ($amount) => $currency.' '.number_format((float) $amount, 2);
+$businessPhones = collect(preg_split('/[\r\n,|\/]+/', (string) ($settings['business_phone'] ?? '')))
+->map(fn ($phone) => trim($phone))
+->filter()
+->implode(' / ');
+$paymentLabel = $payments
+->pluck('payment_method')
+->filter()
+->unique()
+->map(fn ($method) => str((string) $method)->headline()->toString())
+->implode(', ');
+$receivedAmount = $payments->sum(fn ($payment) => (float) ($payment->received_amount ?? $payment->amount ?? 0));
+$changeAmount = $payments->sum(fn ($payment) => (float) ($payment->change_amount ?? 0));
 @endphp
 
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -68,11 +67,14 @@
         }
 
         .receipt {
-            width: var(--receipt-width, 80mm);
-            margin: 0 auto 24px;
+            width: var(--receipt-print-width, 72mm);
+            max-width: var(--receipt-print-width, 72mm);
+            margin: 0 auto;
             background: #ffffff;
-            padding: 14px;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+            padding: 2mm;
+            color: #000000;
+            box-shadow: none;
+            overflow: hidden;
         }
 
         .receipt h1 {
@@ -103,16 +105,21 @@
 
         .receipt-line {
             display: flex;
-            align-items: flex-start;
             justify-content: space-between;
-            gap: 10px;
-            font-size: 12px;
+            gap: 5px;
+            font-size: 11px;
             line-height: 1.35;
         }
 
+        .receipt-line span {
+            flex: 0 0 auto;
+        }
+
         .receipt-line strong {
-            font-weight: 900;
+            flex: 1;
             text-align: right;
+            word-break: break-word;
+            font-weight: 900;
         }
 
         .section-title {
@@ -131,19 +138,40 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
             font-size: 11px;
         }
 
         th,
         td {
             border-bottom: 1px dashed #e2e8f0;
-            padding: 5px 0;
+            padding: 2px 0;
             vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            font-size: 11px;
         }
 
         th {
             font-weight: 900;
             text-align: left;
+        }
+
+        th:nth-child(1),
+        td:nth-child(1) {
+            width: 55%;
+        }
+
+        th:nth-child(2),
+        td:nth-child(2) {
+            width: 15%;
+            text-align: right;
+        }
+
+        th:nth-child(3),
+        td:nth-child(3) {
+            width: 30%;
+            text-align: right;
         }
 
         .text-right {
@@ -193,63 +221,79 @@
 
         @media print {
             @page {
+                size: {
+                        {
+                        strtolower((string) $receiptPaperSize)==='58mm' ? '58mm 297mm': '80mm 297mm'
+                    }
+                }
+
+                ;
                 margin: 0;
-                size: auto;
             }
 
+            html,
             body {
-                background: #ffffff;
+                width: {
+                        {
+                        strtolower((string) $receiptPaperSize)==='58mm' ? '58mm': '80mm'
+                    }
+                }
+
+                ;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
             }
 
             .toolbar {
-                display: none;
+                display: none !important;
             }
 
             .receipt {
-                box-shadow: none;
-                margin: 0;
-                width: var(--receipt-width, 80mm);
-            }
-
-            .receipt[data-paper-size="a4"],
-            .receipt[data-paper-size="a5"] {
-                min-height: 100vh;
-                padding: 18mm;
+                width: var(--receipt-print-width, 72mm) !important;
+                max-width: var(--receipt-print-width, 72mm) !important;
+                margin-left: 2mm !important;
+                margin-right: 0 !important;
+                padding: 2mm !important;
+                box-shadow: none !important;
+                page-break-after: avoid;
+                page-break-before: avoid;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="toolbar">
         <button class="primary" type="button" onclick="window.print()">Print</button>
         <a href="{{ route('backoffice.modules.index', 'sales') }}">Back to Sales</a>
     </div>
 
-    <section class="receipt" data-paper-size="{{ strtolower((string) $receiptPaperSize) }}" style="--receipt-width: {{ $receiptWidth }};">
+    <section class="receipt" data-paper-size="{{ strtolower((string) $receiptPaperSize) }}" style="--receipt-print-width: {{ $receiptPrintableWidth }};">
         <div style="text-align: center;">
             @if(($settings['invoice_show_logo'] ?? true) && ! empty($settings['business_logo']))
-                <img src="{{ asset('storage/'.$settings['business_logo']) }}" alt="{{ $settings['business_name'] }}" style="display: block; width: 18mm; height: 18mm; object-fit: contain; margin: 0 auto 4px;">
+            <img src="{{ asset('storage/'.$settings['business_logo']) }}" alt="{{ $settings['business_name'] }}" style="display: block; width: 18mm; height: 18mm; object-fit: contain; margin: 0 auto 4px;">
             @endif
 
             <h1>{{ $settings['business_name'] }}</h1>
             @if(! empty($settings['business_tagline']))
-                <p class="business-line">{{ $settings['business_tagline'] }}</p>
+            <p class="business-line">{{ $settings['business_tagline'] }}</p>
             @endif
             @if(! empty($settings['business_address']))
-                <p class="business-line">{{ $settings['business_address'] }}</p>
+            <p class="business-line">{{ $settings['business_address'] }}</p>
             @endif
             @if($businessPhones !== '')
-                <p class="business-line">Phone: {{ $businessPhones }}</p>
+            <p class="business-line">Phone: {{ $businessPhones }}</p>
             @endif
             <p class="bill-title">{{ strtolower((string) $sale->status) === 'paid' ? 'Paid bill' : 'Due bill' }}</p>
         </div>
 
         <div style="display: grid; gap: 3px;">
             @if($settings['invoice_show_table'] ?? true)
-                <div class="receipt-line">
-                    <span>Table</span>
-                    <strong>{{ $sale->table_number ? 'Table '.$sale->table_number : '-' }}</strong>
-                </div>
+            <div class="receipt-line">
+                <span>Table</span>
+                <strong>{{ $sale->table_number ? 'Table '.$sale->table_number : '-' }}</strong>
+            </div>
             @endif
             <div class="receipt-line">
                 <span>Invoice</span>
@@ -260,16 +304,16 @@
                 <strong>{{ $paymentLabel !== '' ? $paymentLabel : '-' }}</strong>
             </div>
             @if($settings['invoice_show_waiter'] ?? true)
-                <div class="receipt-line">
-                    <span>Waiter</span>
-                    <strong>{{ $sale->waiter_name ?: 'No waiter' }}</strong>
-                </div>
+            <div class="receipt-line">
+                <span>Waiter</span>
+                <strong>{{ $sale->waiter_name ?: 'No waiter' }}</strong>
+            </div>
             @endif
             @if($settings['invoice_show_customer'] ?? true)
-                <div class="receipt-line">
-                    <span>Customer</span>
-                    <strong>{{ $sale->customer_name ?: 'Walk-in Customer' }}</strong>
-                </div>
+            <div class="receipt-line">
+                <span>Customer</span>
+                <strong>{{ $sale->customer_name ?: 'Walk-in Customer' }}</strong>
+            </div>
             @endif
             <div class="receipt-line">
                 <span>Date</span>
@@ -289,17 +333,17 @@
             </thead>
             <tbody>
                 @foreach($items as $item)
-                    <tr>
-                        <td>
-                            <strong>{{ $item->product_name }}</strong>
-                            <div class="muted">{{ $money($item->unit_price) }}</div>
-                            @if((float) ($item->discount_amount ?? 0) > 0)
-                                <div class="muted">Discount: {{ $money($item->discount_amount) }}</div>
-                            @endif
-                        </td>
-                        <td class="text-right">{{ rtrim(rtrim(number_format((float) $item->quantity, 3), '0'), '.') }}</td>
-                        <td class="text-right">{{ $money($item->line_total) }}</td>
-                    </tr>
+                <tr>
+                    <td>
+                        <strong>{{ $item->product_name }}</strong>
+                        <div class="muted">{{ $money($item->unit_price) }}</div>
+                        @if((float) ($item->discount_amount ?? 0) > 0)
+                        <div class="muted">Discount: {{ $money($item->discount_amount) }}</div>
+                        @endif
+                    </td>
+                    <td class="text-right">{{ rtrim(rtrim(number_format((float) $item->quantity, 3), '0'), '.') }}</td>
+                    <td class="text-right">{{ $money($item->line_total) }}</td>
+                </tr>
                 @endforeach
             </tbody>
         </table>
@@ -340,12 +384,11 @@
 
         <p class="footer">{{ $settings['invoice_footer_text'] ?: 'Thank you. Payment received.' }}</p>
         @if(! empty($settings['invoice_terms']))
-            <p class="terms">{{ $settings['invoice_terms'] }}</p>
+        <p class="terms">{{ $settings['invoice_terms'] }}</p>
         @endif
     </section>
 
-    <script>
-        window.addEventListener('load', () => window.print());
-    </script>
+
 </body>
+
 </html>

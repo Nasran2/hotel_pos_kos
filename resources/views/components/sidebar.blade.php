@@ -36,6 +36,7 @@
                 $item('POS Screen', 'monitor', 'pos.access', route('pos.index'), $currentRoute === 'pos.index'),
                 $item('Online Orders', 'smartphone', 'online_orders.view', route('online-orders.index'), $currentRoute === 'online-orders.index'),
                 $item('Sales List', 'receipt', 'sales.view', $moduleUrl('sales'), $currentRoute === 'backoffice.modules.index' && $currentModule === 'sales'),
+                $item('Tables', 'armchair', 'tables.view', $moduleUrl('tables'), $currentRoute === 'backoffice.modules.index' && $currentModule === 'tables'),
                 $item('Hold Orders', 'pause-circle', 'pos.resume_hold_order', route('pos.index', ['view' => 'holds']), request('view') === 'holds'),
                 $item('Payment Pending Tables', 'clock', 'pos.print_bill', route('pos.index', ['view' => 'payment-pending']), request('view') === 'payment-pending'),
                 $item('Register Opening', 'door-open', 'pos.open_register', route('pos.index', ['register' => 'open']), request('register') === 'open'),

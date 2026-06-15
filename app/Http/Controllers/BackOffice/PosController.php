@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -281,7 +283,7 @@ class PosController extends Controller
 
         // Get or create expense category
         $category = ExpenseCategory::where('name', $validated['category'])->first();
-        if (!$category) {
+        if (! $category) {
             $category = ExpenseCategory::create([
                 'name' => $validated['category'],
                 'is_active' => true,
@@ -783,7 +785,7 @@ class PosController extends Controller
         $register = $this->currentRegister();
         abort_unless($register, 422, 'No open register.');
 
-        $filename = 'register-cash-book-'.$register->id.'-'.now()->format('Ymd-His').'.pdf';
+        $filename = 'register-cash-book-' . $register->id . '-' . now()->format('Ymd-His') . '.pdf';
 
         return response($this->registerCloseCashBookPdf($this->registerCloseCashBook($register)), 200, [
             'Content-Type' => 'application/pdf',
@@ -803,12 +805,14 @@ class PosController extends Controller
         ]);
 
         $summary = $this->registerSummary($register->id);
-        $difference = $validated['actual_cash'] - $summary['expected_cash'];
+        $cashBalanceNow = $this->cashBalance();
+        $difference = $validated['actual_cash'] - $cashBalanceNow;
 
-        DB::transaction(function () use ($register, $validated, $summary, $difference): void {
+        DB::transaction(function () use ($register, $validated, $summary, $difference, $cashBalanceNow): void {
             DB::table('register_closings')->insert([
                 'register_id' => $register->id,
                 ...$summary,
+                'expected_cash' => $cashBalanceNow,
                 'actual_cash' => $validated['actual_cash'],
                 'difference' => $difference,
                 'note' => $validated['note'] ?? null,
@@ -956,7 +960,7 @@ class PosController extends Controller
      */
     private function settings(): array
     {
-        $settings = DB::table('settings')->get()->mapWithKeys(fn ($setting) => [$setting->group.'_'.$setting->key => $setting->value])->all();
+        $settings = DB::table('settings')->get()->mapWithKeys(fn($setting) => [$setting->group . '_' . $setting->key => $setting->value])->all();
 
         return [
             'business_name' => $settings['business_name'] ?? 'Hotel POS',
@@ -989,12 +993,12 @@ class PosController extends Controller
     private function registerSummary(int $registerId): array
     {
         $register = DB::table('registers')->where('id', $registerId)->first();
-        $paymentRegisterScope = fn ($query) => $query
+        $paymentRegisterScope = fn($query) => $query
             ->where('sale_payments.register_id', $registerId)
-            ->orWhere(fn ($fallback) => $fallback
+            ->orWhere(fn($fallback) => $fallback
                 ->whereNull('sale_payments.register_id')
                 ->where('sales.register_id', $registerId));
-        $salePaymentsForRegister = fn (string $paymentMethod): float => (float) DB::table('sale_payments')
+        $salePaymentsForRegister = fn(string $paymentMethod): float => (float) DB::table('sale_payments')
             ->join('sales', 'sales.id', '=', 'sale_payments.sale_id')
             ->whereNull('sales.deleted_at')
             ->where($paymentRegisterScope)
@@ -1075,16 +1079,16 @@ class PosController extends Controller
         $cashRows = collect([
             $this->registerCloseCashBookRow(
                 date: $from,
-                number: 'REG'.$register->id,
+                number: 'REG' . $register->id,
                 payee: auth()->user()?->name ?? 'Cashier',
                 particulars: 'Register opening',
                 debit: (float) $register->opening_cash
             ),
         ]);
 
-        $paymentRegisterScope = fn ($query) => $query
+        $paymentRegisterScope = fn($query) => $query
             ->where('sale_payments.register_id', $register->id)
-            ->orWhere(fn ($fallback) => $fallback
+            ->orWhere(fn($fallback) => $fallback
                 ->whereNull('sale_payments.register_id')
                 ->where('sales.register_id', $register->id));
 
@@ -1096,11 +1100,11 @@ class PosController extends Controller
             ->where('sale_payments.payment_method', 'cash')
             ->whereBetween('sale_payments.paid_at', [$from, $to])
             ->get(['sales.invoice_no', 'sale_payments.paid_at as date', 'sale_payments.amount', 'customers.name as customer_name'])
-            ->map(fn (object $row): array => $this->registerCloseCashBookRow(
+            ->map(fn(object $row): array => $this->registerCloseCashBookRow(
                 date: $row->date,
                 number: $row->invoice_no ?? '-',
                 payee: $row->customer_name ?? 'Cash',
-                particulars: trim(($row->invoice_no ?? 'Sale').' CASH SALE'),
+                particulars: trim(($row->invoice_no ?? 'Sale') . ' CASH SALE'),
                 debit: (float) $row->amount
             ));
 
@@ -1110,9 +1114,9 @@ class PosController extends Controller
             ->where('cash_ins.register_id', $register->id)
             ->whereBetween('cash_ins.movement_date', [$from, $to])
             ->get(['cash_ins.id', 'cash_ins.movement_date as date', 'cash_ins.amount', 'cash_ins.note', 'users.name as user_name'])
-            ->map(fn (object $row): array => $this->registerCloseCashBookRow(
+            ->map(fn(object $row): array => $this->registerCloseCashBookRow(
                 date: $row->date,
-                number: 'CI'.$row->id,
+                number: 'CI' . $row->id,
                 payee: $row->user_name ?? 'Cash',
                 particulars: $row->note ?: 'Cash in',
                 debit: (float) $row->amount
@@ -1124,9 +1128,9 @@ class PosController extends Controller
             ->where('cash_outs.register_id', $register->id)
             ->whereBetween('cash_outs.movement_date', [$from, $to])
             ->get(['cash_outs.id', 'cash_outs.movement_date as date', 'cash_outs.amount', 'cash_outs.note', 'users.name as user_name'])
-            ->map(fn (object $row): array => $this->registerCloseCashBookRow(
+            ->map(fn(object $row): array => $this->registerCloseCashBookRow(
                 date: $row->date,
-                number: 'CO'.$row->id,
+                number: 'CO' . $row->id,
                 payee: $row->user_name ?? 'Cash',
                 particulars: $row->note ?: 'Cash out',
                 credit: (float) $row->amount
@@ -1150,9 +1154,9 @@ class PosController extends Controller
                     });
             })
             ->get(['expenses.id', 'expenses.expense_date as date', 'expenses.amount', 'expenses.note', 'expense_categories.name as category'])
-            ->map(fn (object $row): array => $this->registerCloseCashBookRow(
+            ->map(fn(object $row): array => $this->registerCloseCashBookRow(
                 date: $row->date,
-                number: 'EX'.$row->id,
+                number: 'EX' . $row->id,
                 payee: $row->category ?? 'Expense',
                 particulars: $row->note ?: 'Cash expense',
                 credit: (float) $row->amount
@@ -1212,7 +1216,7 @@ class PosController extends Controller
 
                 return $this->registerCloseCashBookRow(
                     date: $row->date,
-                    number: 'BT'.$row->id,
+                    number: 'BT' . $row->id,
                     payee: $this->registerCloseBankPayee($row),
                     particulars: $row->note ?: $this->registerCloseBankLabel($row->type),
                     debit: $isDebit ? (float) $row->amount : 0.0,
@@ -1238,10 +1242,10 @@ class PosController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $rows
+     * @param  Collection<int, array<string, mixed>>  $rows
      * @return array{title: string, rows: array<int, array<string, mixed>>, total_debits: float, total_credits: float, closing: float}
      */
-    private function registerCloseCashBookSection(string $title, \Illuminate\Support\Collection $rows): array
+    private function registerCloseCashBookSection(string $title, Collection $rows): array
     {
         return [
             'title' => $title,
@@ -1296,7 +1300,7 @@ class PosController extends Controller
 
         $objects = [
             '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
-            '2 0 obj << /Type /Pages /Kids ['.collect($pageObjectIds)->map(fn (int $id): string => "{$id} 0 R")->implode(' ').'] /Count '.count($pageObjectIds).' >> endobj',
+            '2 0 obj << /Type /Pages /Kids [' . collect($pageObjectIds)->map(fn(int $id): string => "{$id} 0 R")->implode(' ') . '] /Count ' . count($pageObjectIds) . ' >> endobj',
         ];
         $fontObjectId = 3 + (count($pages) * 2);
 
@@ -1306,7 +1310,7 @@ class PosController extends Controller
             $content = $this->registerCloseCashBookPdfPage($cashBook, $page, $index + 1, count($pages));
 
             $objects[] = "{$pageId} 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 {$fontObjectId} 0 R >> >> /Contents {$contentId} 0 R >> endobj";
-            $objects[] = "{$contentId} 0 obj << /Length ".strlen($content)." >> stream\n{$content}\nendstream endobj";
+            $objects[] = "{$contentId} 0 obj << /Length " . strlen($content) . " >> stream\n{$content}\nendstream endobj";
         }
 
         $objects[] = "{$fontObjectId} 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Courier >> endobj";
@@ -1315,27 +1319,27 @@ class PosController extends Controller
         $offsets = [0];
         foreach ($objects as $object) {
             $offsets[] = strlen($pdf);
-            $pdf .= $object."\n";
+            $pdf .= $object . "\n";
         }
 
         $xref = strlen($pdf);
-        $pdf .= "xref\n0 ".(count($objects) + 1)."\n0000000000 65535 f \n";
+        $pdf .= "xref\n0 " . (count($objects) + 1) . "\n0000000000 65535 f \n";
         foreach (array_slice($offsets, 1) as $offset) {
-            $pdf .= str_pad((string) $offset, 10, '0', STR_PAD_LEFT)." 00000 n \n";
+            $pdf .= str_pad((string) $offset, 10, '0', STR_PAD_LEFT) . " 00000 n \n";
         }
 
-        return $pdf."trailer << /Size ".(count($objects) + 1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
+        return $pdf . 'trailer << /Size ' . (count($objects) + 1) . " /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
     }
 
     /**
      * @param  array{from: string, to: string}  $cashBook
-     * @param  array{section: array<string, mixed>, rows: \Illuminate\Support\Collection<int, array<string, mixed>>, show_totals: bool}  $page
+     * @param  array{section: array<string, mixed>, rows: Collection<int, array<string, mixed>>, show_totals: bool}  $page
      */
     private function registerCloseCashBookPdfPage(array $cashBook, array $page, int $pageNumber, int $pageCount): string
     {
-        $from = \Carbon\Carbon::parse($cashBook['from']);
-        $to = \Carbon\Carbon::parse($cashBook['to']);
-        $dateLabel = $from->format('Y-m-d H:i').' to '.$to->format('Y-m-d H:i');
+        $from = Carbon::parse($cashBook['from']);
+        $to = Carbon::parse($cashBook['to']);
+        $dateLabel = $from->format('Y-m-d H:i') . ' to ' . $to->format('Y-m-d H:i');
         $settings = $this->settings();
 
         $content = $this->registerClosePdfTextAt(32, 558, mb_strimwidth($settings['business_name'], 0, 38), 17);
@@ -1356,7 +1360,7 @@ class PosController extends Controller
         foreach ($page['rows'] as $row) {
             $payee = $row['account'] ?: $row['payee'];
 
-            $content .= $this->registerClosePdfTextAt(32, $y, \Carbon\Carbon::parse($row['date'])->format('y-m-d'), 8);
+            $content .= $this->registerClosePdfTextAt(32, $y, Carbon::parse($row['date'])->format('y-m-d'), 8);
             $content .= $this->registerClosePdfTextAt(96, $y, mb_strimwidth((string) $row['number'], 0, 18), 8);
             $content .= $this->registerClosePdfTextAt(184, $y, mb_strimwidth((string) $payee, 0, 28), 8);
             $content .= $this->registerClosePdfTextAt(380, $y, mb_strimwidth((string) $row['particulars'], 0, 42), 8);
@@ -1373,7 +1377,7 @@ class PosController extends Controller
             $content .= $this->registerClosePdfTextAt(526, $y, 'TOTAL CREDITS :', 9);
             $content .= $this->registerClosePdfTextAt(675, $y, number_format((float) $page['section']['total_credits'], 2), 9);
             $y -= 17;
-            $content .= $this->registerClosePdfTextAt(450, $y, mb_strimwidth((string) $page['section']['title'], 0, 26).' - BALANCE :', 9);
+            $content .= $this->registerClosePdfTextAt(450, $y, mb_strimwidth((string) $page['section']['title'], 0, 26) . ' - BALANCE :', 9);
             $content .= $this->registerClosePdfTextAt(675, $y, number_format((float) $page['section']['closing'], 2), 9);
         }
 
@@ -1416,7 +1420,7 @@ class PosController extends Controller
         return str($type)->replace('_', ' ')->headline()->toString();
     }
 
-    private function customerDueOptions(): \Illuminate\Support\Collection
+    private function customerDueOptions(): Collection
     {
         return DB::table('customers')
             ->join('sales', 'sales.customer_id', '=', 'customers.id')
@@ -1433,7 +1437,7 @@ class PosController extends Controller
                 'customers.phone',
                 DB::raw('sum(sales.due_amount) as due_amount'),
             ])
-            ->map(fn (object $customer): array => [
+            ->map(fn(object $customer): array => [
                 'id' => (int) $customer->id,
                 'name' => $customer->name,
                 'phone' => $customer->phone,
@@ -1441,7 +1445,7 @@ class PosController extends Controller
             ]);
     }
 
-    private function supplierDueOptions(): \Illuminate\Support\Collection
+    private function supplierDueOptions(): Collection
     {
         return DB::table('suppliers')
             ->join('purchases', 'purchases.supplier_id', '=', 'suppliers.id')
@@ -1457,7 +1461,7 @@ class PosController extends Controller
                 'suppliers.phone',
                 DB::raw('sum(purchases.due_amount) as due_amount'),
             ])
-            ->map(fn (object $supplier): array => [
+            ->map(fn(object $supplier): array => [
                 'id' => (int) $supplier->id,
                 'name' => $supplier->name,
                 'phone' => $supplier->phone,
@@ -1523,7 +1527,7 @@ class PosController extends Controller
         ]);
     }
 
-    private function registerExpenses(object $register): \Illuminate\Support\Collection
+    private function registerExpenses(object $register): Collection
     {
         return DB::table('expenses')
             ->leftJoin('expense_categories', 'expense_categories.id', '=', 'expenses.expense_category_id')
@@ -1551,7 +1555,7 @@ class PosController extends Controller
                 'expenses.source_id',
                 'expense_categories.name as category',
             ])
-            ->map(fn (object $expense): array => [
+            ->map(fn(object $expense): array => [
                 'id' => (int) $expense->id,
                 'amount' => (float) $expense->amount,
                 'category' => $expense->category ?? 'Expense',
@@ -1567,7 +1571,7 @@ class PosController extends Controller
         $printedBills = DB::table('hold_orders')->whereNotNull('invoice_no')->count();
         $completedSales = DB::table('sales')->count();
 
-        return $prefix.'-'.now()->format('Ymd').'-'.str_pad((string) ($completedSales + $printedBills + 1), 5, '0', STR_PAD_LEFT);
+        return $prefix . '-' . now()->format('Ymd') . '-' . str_pad((string) ($completedSales + $printedBills + 1), 5, '0', STR_PAD_LEFT);
     }
 
     /**
