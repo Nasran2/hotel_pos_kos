@@ -618,6 +618,7 @@ if (pos) {
 
     // Line item modal elements
     const lineModal = document.getElementById('line-item-modal');
+    const lineNameInput = lineModal?.querySelector('[data-line-name]');
     const linePriceInput = lineModal?.querySelector('[data-line-price]');
     const lineDiscountType = lineModal?.querySelector('[data-line-discount-type]');
     const lineDiscountValue = lineModal?.querySelector('[data-line-discount-value]');
@@ -767,6 +768,7 @@ if (pos) {
             const item = cart[currentLineIndex];
             if (!item) return;
 
+            if (lineNameInput) lineNameInput.value = item.name || '';
             if (linePriceInput) linePriceInput.value = Number(item.price).toFixed(2);
 
             // infer discount type/value (prefer percent if it looks like a percent)
@@ -792,10 +794,12 @@ if (pos) {
         const item = cart[currentLineIndex];
         if (!item) return;
 
+        const newName = lineNameInput?.value?.trim() || item.name;
         const newPrice = Number(linePriceInput?.value || 0);
         const type = lineDiscountType?.value || 'fixed';
         const val = Number(lineDiscountValue?.value || 0);
 
+        item.name = newName;
         item.price = newPrice;
 
         let discountAmount = 0;

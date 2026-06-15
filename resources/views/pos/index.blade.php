@@ -1762,9 +1762,14 @@
             <button class="modal-close" data-modal-close type="button">×</button>
 
             <h2 class="text-2xl font-black text-slate-950">Edit Line Item</h2>
-            <p class="mt-1 text-sm font-semibold text-slate-500">Change unit price and add a discount (fixed or percentage) for this line.</p>
+            <p class="mt-1 text-sm font-semibold text-slate-500">Change name, unit price, and add a discount for this line.</p>
 
             <div class="mt-4 grid gap-3">
+                <label class="grid gap-2 text-sm font-black text-slate-700">
+                    Item Name
+                    <input class="form-control" type="text" data-line-name>
+                </label>
+
                 <label class="grid gap-2 text-sm font-black text-slate-700">
                     Unit Price
                     <input class="form-control" type="number" step="0.01" min="0" data-line-price>

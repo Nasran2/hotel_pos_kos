@@ -456,7 +456,7 @@ class PosController extends Controller
                 DB::table('sale_items')->insert([
                     'sale_id' => $saleId,
                     'product_id' => $product->id,
-                    'product_name' => $product->name,
+                    'product_name' => $item['name'] ?? $product->name,
                     'quantity' => $item['quantity'],
                     'unit_cost' => $product->cost_price,
                     'unit_price' => $item['price'],
