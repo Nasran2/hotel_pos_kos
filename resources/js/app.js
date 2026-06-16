@@ -405,7 +405,7 @@ if (pos) {
         body.innerHTML = cart.map((item, index) => `
             <tr>
                 <td class="py-3 font-semibold">
-                    <button data-line-discount="${index}" class="text-left hover:text-blue-700">${item.name}</button>
+                    <button data-line-discount="${index}" class="text-left hover:text-blue-700">${escapeHtml(normalizedItemName(item))}</button>
                     ${Number(item.discount_amount || 0) > 0 ? `<div class="text-xs font-bold text-amber-600">Line discount: -${money(item.discount_amount)}</div>` : ''}
                 </td>
                 <td><div class="inline-flex items-center rounded-lg border border-slate-200"><button class="px-2" data-qty="${index}" data-step="-1">-</button><span class="px-2">${item.quantity}</span><button class="px-2" data-qty="${index}" data-step="1">+</button></div></td>
@@ -478,7 +478,7 @@ if (pos) {
         document.querySelector('[data-print-items]').innerHTML = cart.map((item) => `
             <tr>
                 <td>
-                    ${escapeHtml(item.name)}
+                    ${escapeHtml(normalizedItemName(item))}
                     <br><span style="font-size: 10px;">${money(item.price)}</span>
                     ${Number(item.discount_amount || 0) > 0 ? `<br><span style="font-size: 10px; color: #b45309;">Discount: -${money(item.discount_amount)}</span>` : ''}
                 </td>
@@ -515,7 +515,7 @@ if (pos) {
             waiter_id: waiterIdInput?.value || null,
             note: document.querySelector('[data-note]')?.value || null,
             discount_amount: summary.discount,
-            items: cart,
+            items: cart.map(normalizedCartItem),
         };
     };
 
@@ -633,6 +633,27 @@ if (pos) {
         return card ? productFromCard(card) : item;
     };
 
+    const normalizedItemName = (item) => {
+        const fallbackProduct = productForCartItem(item);
+
+        return (item?.name || fallbackProduct?.name || 'Item').trim();
+    };
+
+    const normalizedCartItem = (item) => {
+        const fallbackProduct = productForCartItem(item);
+
+        return {
+            ...item,
+            name: normalizedItemName(item),
+            quantity: Number(item.quantity || 0),
+            price: Number(item.price ?? fallbackProduct?.selling_price ?? 0),
+            discount_amount: Number(item.discount_amount || 0),
+            discount_type: item.discount_type || null,
+            maintain_stock: item.maintain_stock ?? fallbackProduct?.maintain_stock,
+            stock_quantity: Number(item.stock_quantity ?? fallbackProduct?.stock_quantity ?? 0),
+        };
+    };
+
     const canSetCartQuantity = (product, quantity) => {
         if (!product.maintain_stock) {
             return true;
@@ -682,7 +703,14 @@ if (pos) {
     const applyHeldOrder = (data) => {
         currentHoldId = data.hold?.id || null;
         currentHoldStatus = data.hold?.status || null;
-        cart.splice(0, cart.length, ...data.items.map((item) => ({ id: item.product_id, name: item.product_name, quantity: Number(item.quantity), price: Number(item.unit_price), discount_amount: Number(item.discount_amount || 0) })));
+        cart.splice(0, cart.length, ...data.items.map((item) => normalizedCartItem({
+            id: item.product_id,
+            name: item.product_name,
+            quantity: Number(item.quantity),
+            price: Number(item.unit_price),
+            discount_amount: Number(item.discount_amount || 0),
+            discount_type: item.discount_type || null,
+        })));
 
         if (data.hold?.customer_id) {
             const customerOption = optionById(customerOptions, data.hold.customer_id);
@@ -765,10 +793,11 @@ if (pos) {
         if (lineDiscount) {
             // open inline modal to edit unit price and discount
             currentLineIndex = Number(lineDiscount.dataset.lineDiscount);
-            const item = cart[currentLineIndex];
+            const item = normalizedCartItem(cart[currentLineIndex]);
             if (!item) return;
+            cart[currentLineIndex] = item;
 
-            if (lineNameInput) lineNameInput.value = item.name || '';
+            if (lineNameInput) lineNameInput.value = normalizedItemName(item);
             if (linePriceInput) linePriceInput.value = Number(item.price).toFixed(2);
 
             // infer discount type/value (prefer percent if it looks like a percent)
@@ -801,6 +830,7 @@ if (pos) {
 
         item.name = newName;
         item.price = newPrice;
+        item.discount_type = type === 'percent' ? 'percentage' : 'fixed';
 
         let discountAmount = 0;
         if (type === 'percent') {

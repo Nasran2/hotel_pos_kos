@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\BackOffice;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,12 @@ class DashboardController extends Controller
             ->select('activity_logs.*', 'users.name as user_name')
             ->latest('activity_logs.created_at')
             ->limit(9)
-            ->get();
+            ->get()
+            ->map(function (object $activity): object {
+                $activity->user_name = User::visibleName($activity->user_name ?? null, 'System');
+
+                return $activity;
+            });
 
         [$chartLabels, $salesSeries, $profitSeries] = $this->buildMonthlyRevenueSeries($to);
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -923,7 +924,7 @@ class PosController extends Controller
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'exists:products,id'],
-            'items.*.name' => ['required', 'string'],
+            'items.*.name' => ['nullable', 'string'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
             'items.*.price' => ['required', 'numeric', 'min:0'],
             'items.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
@@ -935,6 +936,7 @@ class PosController extends Controller
         $profit = 0;
         foreach ($validated['items'] as $index => $item) {
             $product = DB::table('products')->where('id', $item['id'])->first();
+            $validated['items'][$index]['name'] = trim((string) ($item['name'] ?? '')) ?: $product->name;
             $discount = (float) ($item['discount_amount'] ?? 0);
             $lineTotal = ((float) $item['price'] * (float) $item['quantity']) - $discount;
             $validated['items'][$index]['line_total'] = $lineTotal;
@@ -1084,7 +1086,7 @@ class PosController extends Controller
             $this->registerCloseCashBookRow(
                 date: $from,
                 number: 'REG'.$register->id,
-                payee: auth()->user()?->name ?? 'Cashier',
+                payee: User::visibleName(auth()->user()?->name, 'Cashier'),
                 particulars: 'Register opening',
                 debit: (float) $register->opening_cash
             ),
@@ -1121,7 +1123,7 @@ class PosController extends Controller
             ->map(fn (object $row): array => $this->registerCloseCashBookRow(
                 date: $row->date,
                 number: 'CI'.$row->id,
-                payee: $row->user_name ?? 'Cash',
+                payee: User::visibleName($row->user_name, 'Cash'),
                 particulars: $row->note ?: 'Cash in',
                 debit: (float) $row->amount
             ));
@@ -1135,7 +1137,7 @@ class PosController extends Controller
             ->map(fn (object $row): array => $this->registerCloseCashBookRow(
                 date: $row->date,
                 number: 'CO'.$row->id,
-                payee: $row->user_name ?? 'Cash',
+                payee: User::visibleName($row->user_name, 'Cash'),
                 particulars: $row->note ?: 'Cash out',
                 credit: (float) $row->amount
             ));

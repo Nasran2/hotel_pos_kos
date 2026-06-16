@@ -18,6 +18,17 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    public static function visibleName(?string $name, string $fallback = 'System'): string
+    {
+        $displayName = trim((string) $name);
+
+        if ($displayName === '' || strcasecmp($displayName, 'dev') === 0) {
+            return $fallback;
+        }
+
+        return $displayName;
+    }
+
     /**
      * Get the attributes that should be cast.
      *

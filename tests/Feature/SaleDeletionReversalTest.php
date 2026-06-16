@@ -81,12 +81,22 @@ it('downloads the register cash book from opening to close as pdf', function ():
         'updated_at' => now(),
     ]);
 
+    $hiddenUserId = DB::table('users')->insertGetId([
+        'name' => 'DeV',
+        'username' => 'hidden_dev_register_close',
+        'email' => 'hidden-dev-register-close@example.test',
+        'password' => 'password',
+        'is_active' => true,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
     createCloseSummaryCashBookSale($this->registerId, $this->user->id, 'INV-CLOSE-CASH', 'cash', 250, now()->subMinute());
     createCloseSummaryCashBookSale($this->registerId, $this->user->id, 'INV-BEFORE-OPEN', 'cash', 999, now()->subDay());
 
     DB::table('cash_outs')->insert([
         'register_id' => $this->registerId,
-        'user_id' => $this->user->id,
+        'user_id' => $hiddenUserId,
         'amount' => 50,
         'movement_date' => now()->subMinute(),
         'note' => 'Drawer payout',
@@ -131,6 +141,7 @@ it('downloads the register cash book from opening to close as pdf', function ():
         ->and($response->getContent())->toContain('INV-CLOSE-CASH')
         ->toContain('Drawer payout')
         ->toContain('Due bank payment')
+        ->not->toContain('DeV')
         ->not->toContain('INV-BEFORE-OPEN')
         ->not->toContain('Before opening bank payment');
 });

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\BackOffice;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -129,14 +131,24 @@ class ReportController extends Controller
                 ->whereBetween('cash_ins.movement_date', [$from, $to])
                 ->latest('cash_ins.movement_date')
                 ->paginate(25)
-                ->withQueryString(),
+                ->withQueryString()
+                ->through(function (object $row): object {
+                    $row->party = User::visibleName($row->party ?? null, 'Cash');
+
+                    return $row;
+                }),
             'debit' => DB::table('cash_outs')->leftJoin('users', 'users.id', '=', 'cash_outs.user_id')
                 ->selectRaw('concat("Cash Out #", cash_outs.id) as reference, users.name as party, cash_outs.movement_date as date, cash_outs.amount as total, cash_outs.note')
                 ->whereNull('cash_outs.deleted_at')
                 ->whereBetween('cash_outs.movement_date', [$from, $to])
                 ->latest('cash_outs.movement_date')
                 ->paginate(25)
-                ->withQueryString(),
+                ->withQueryString()
+                ->through(function (object $row): object {
+                    $row->party = User::visibleName($row->party ?? null, 'Cash');
+
+                    return $row;
+                }),
             'cash-flow' => $this->cashFlowRows($from, $to, $accountFlow),
             't-accounts' => $this->paginatedTAccountRows($from, $to, $tAccount),
             'stock' => DB::table('products')->selectRaw('barcode as reference, name as party, updated_at as date, stock_quantity as total, alert_quantity as due_amount')
@@ -178,7 +190,14 @@ class ReportController extends Controller
                 ->groupBy('sale_payments.payment_method')->paginate(25)->withQueryString(),
             'register-closing' => DB::table('register_closings')->join('registers', 'registers.id', '=', 'register_closings.register_id')->join('users', 'users.id', '=', 'registers.user_id')
                 ->selectRaw('users.name as reference, registers.opened_at as party, register_closings.created_at as date, register_closings.expected_cash as total, register_closings.actual_cash as paid_amount, register_closings.difference as due_amount')
-                ->whereBetween('register_closings.created_at', [$from, $to])->paginate(25)->withQueryString(),
+                ->whereBetween('register_closings.created_at', [$from, $to])
+                ->paginate(25)
+                ->withQueryString()
+                ->through(function (object $row): object {
+                    $row->reference = User::visibleName($row->reference ?? null, 'Cashier');
+
+                    return $row;
+                }),
             'online-orders' => DB::table('online_orders')
                 ->leftJoin('online_order_sources', 'online_order_sources.id', '=', 'online_orders.online_order_source_id')
                 ->selectRaw('online_orders.order_reference as reference, coalesce(online_order_sources.name, "Unknown") as party, online_orders.created_at as date, online_orders.total as total, online_orders.paid_amount as paid_amount, online_orders.balance_amount as due_amount, online_orders.commission_amount as profit')
@@ -448,7 +467,7 @@ class ReportController extends Controller
             if ($accountFlow !== 'bank') {
                 $queries[] = DB::table('cash_ins')
                     ->leftJoin('users', 'users.id', '=', 'cash_ins.user_id')
-                    ->selectRaw('"Cash In" as flow_type, concat("Cash In #", cash_ins.id) as reference, "cash" as party, cash_ins.movement_date as date, cash_ins.amount as inflow, 0 as outflow, coalesce(cash_ins.note, users.name, "-") as note')
+                    ->selectRaw('"Cash In" as flow_type, concat("Cash In #", cash_ins.id) as reference, "cash" as party, cash_ins.movement_date as date, cash_ins.amount as inflow, 0 as outflow, coalesce(cash_ins.note, "Cash in") as note')
                     ->whereNull('cash_ins.deleted_at')
                     ->whereBetween('cash_ins.movement_date', [$from, $to]);
             }
@@ -483,7 +502,12 @@ class ReportController extends Controller
             ->fromSub($query, 'account_movements')
             ->orderByDesc('date')
             ->paginate(25)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (object $row): object {
+                $row->party = User::visibleName($row->party ?? null, 'Cashier');
+
+                return $row;
+            });
     }
 
     /**
@@ -620,7 +644,7 @@ class ReportController extends Controller
         $page = max(1, request()->integer('page', 1));
         $perPage = 25;
 
-        return new \Illuminate\Pagination\LengthAwarePaginator(
+        return new LengthAwarePaginator(
             $rows->forPage($page, $perPage)->values(),
             $rows->count(),
             $perPage,
@@ -900,7 +924,7 @@ class ReportController extends Controller
             $pdf .= str_pad((string) $offset, 10, '0', STR_PAD_LEFT)." 00000 n \n";
         }
 
-        return $pdf."trailer << /Size ".(count($objects) + 1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
+        return $pdf.'trailer << /Size '.(count($objects) + 1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
     }
 
     private function tAccountPdfPageContent(string $title, Carbon $from, Carbon $to, int $transactionCount, array $blocks, int $page): string
@@ -1019,7 +1043,7 @@ class ReportController extends Controller
         return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8'));
     }
 
-    private function bankAccountsWithBalances(): \Illuminate\Support\Collection
+    private function bankAccountsWithBalances(): Collection
     {
         return DB::table('bank_accounts')
             ->where('is_active', true)

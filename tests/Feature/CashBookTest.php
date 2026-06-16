@@ -113,6 +113,62 @@ it('exports the cash book as pdf', function (): void {
         ->and($response->getContent())->toContain('INV-PDF');
 });
 
+it('hides the dev user name in cash book screens and exports', function (): void {
+    $hiddenUserId = DB::table('users')->insertGetId([
+        'name' => 'DeV',
+        'username' => 'hidden_dev_cashbook',
+        'email' => 'hidden-dev-cashbook@example.test',
+        'password' => 'password',
+        'is_active' => true,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('registers')->insert([
+        'user_id' => $hiddenUserId,
+        'opening_cash' => 350,
+        'opened_at' => now()->subMinute(),
+        'status' => 'open',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('cash_ins')->insert([
+        'register_id' => $this->registerId,
+        'user_id' => $hiddenUserId,
+        'amount' => 120,
+        'movement_date' => now(),
+        'note' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('cash_outs')->insert([
+        'register_id' => $this->registerId,
+        'user_id' => $hiddenUserId,
+        'amount' => 40,
+        'movement_date' => now(),
+        'note' => 'Hidden user payout',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $page = $this->get(route('accounts.cash-book'))
+        ->assertSuccessful();
+
+    expect($page->getContent())
+        ->not->toContain('>DeV<')
+        ->toContain('Cashier')
+        ->toContain('Hidden user payout');
+
+    $pdf = $this->get(route('accounts.cash-book.export', ['format' => 'pdf']))
+        ->assertSuccessful();
+
+    expect($pdf->getContent())
+        ->toStartWith('%PDF-1.4')
+        ->not->toContain('DeV');
+});
+
 function createCashBookSale(int $registerId, int $userId, string $invoiceNo, string $paymentMethod, float $amount, mixed $date = null): int
 {
     $date ??= now();

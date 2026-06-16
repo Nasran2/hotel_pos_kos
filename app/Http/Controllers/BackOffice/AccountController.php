@@ -4,6 +4,7 @@ namespace App\Http\Controllers\BackOffice;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -345,7 +346,7 @@ class AccountController extends Controller
             ->map(fn (object $row): object => $this->cashBookRow(
                 date: $row->date,
                 number: 'REG'.$row->id,
-                payee: $row->user_name ?? 'Cashier',
+                payee: User::visibleName($row->user_name, 'Cashier'),
                 particulars: $row->note ?: 'Register opening',
                 debit: (float) $row->amount
             ));
@@ -373,7 +374,7 @@ class AccountController extends Controller
             ->map(fn (object $row): object => $this->cashBookRow(
                 date: $row->date,
                 number: 'CI'.$row->id,
-                payee: $row->user_name ?? 'Cash',
+                payee: User::visibleName($row->user_name, 'Cash'),
                 particulars: $row->note ?: 'Cash in',
                 debit: (float) $row->amount
             ));
@@ -386,7 +387,7 @@ class AccountController extends Controller
             ->map(fn (object $row): object => $this->cashBookRow(
                 date: $row->date,
                 number: 'CO'.$row->id,
-                payee: $row->user_name ?? 'Cash',
+                payee: User::visibleName($row->user_name, 'Cash'),
                 particulars: $row->note ?: 'Cash out',
                 credit: (float) $row->amount
             ));
@@ -611,7 +612,7 @@ class AccountController extends Controller
             $pdf .= str_pad((string) $offset, 10, '0', STR_PAD_LEFT)." 00000 n \n";
         }
 
-        return $pdf."trailer << /Size ".(count($objects) + 1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
+        return $pdf.'trailer << /Size '.(count($objects) + 1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
     }
 
     /**
