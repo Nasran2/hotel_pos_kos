@@ -94,11 +94,100 @@ test('it returns register close summary with cash breakdown keys', function (): 
             'cash_drawer_open_balance',
             'total_sale_cash',
             'total_expense_amount',
+            'overall_cash_breakdown' => [
+                'before',
+                'drawer_open_balance',
+                'cash_in',
+                'total_sale_cash',
+                'cash_out',
+                'total_expense_amount',
+                'now',
+            ],
         ]);
 
     $data = $response->json();
     expect((float) $data['cash_drawer_open_balance'])->toBe(1000.0)
         ->and((float) $data['total_sale_cash'])->toBe(500.0)
         ->and((float) $data['total_expense_amount'])->toBe(100.0)
-        ->and((float) $data['cash_in_cashier'])->toBe(1400.0); // 1000 + 500 - 100
+        ->and((float) $data['cash_in_cashier'])->toBe(1400.0)
+        ->and((float) $data['overall_cash_breakdown']['before'])->toBe(0.0)
+        ->and((float) $data['overall_cash_breakdown']['drawer_open_balance'])->toBe(1000.0)
+        ->and((float) $data['overall_cash_breakdown']['cash_in'])->toBe(0.0)
+        ->and((float) $data['overall_cash_breakdown']['total_sale_cash'])->toBe(500.0)
+        ->and((float) $data['overall_cash_breakdown']['cash_out'])->toBe(0.0)
+        ->and((float) $data['overall_cash_breakdown']['total_expense_amount'])->toBe(100.0)
+        ->and((float) $data['overall_cash_breakdown']['now'])->toBe(1400.0);
+});
+
+test('it returns the overall cash balance when another user has cash activity', function (): void {
+    DB::table('registers')->where('id', $this->registerId)->update([
+        'opening_cash' => 0,
+        'updated_at' => now(),
+    ]);
+
+    $otherUserId = DB::table('users')->insertGetId([
+        'name' => 'Second Cashier',
+        'username' => 'second_cashier',
+        'email' => 'second-cashier@example.test',
+        'password' => 'password',
+        'is_active' => true,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $otherRegisterId = DB::table('registers')->insertGetId([
+        'user_id' => $otherUserId,
+        'opening_cash' => 2000,
+        'opened_at' => now()->subMinute(),
+        'status' => 'open',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $saleId = DB::table('sales')->insertGetId([
+        'register_id' => $otherRegisterId,
+        'user_id' => $otherUserId,
+        'customer_id' => $this->customerId,
+        'invoice_no' => 'INV-SECOND-CASHIER',
+        'sale_date' => now(),
+        'subtotal' => 700,
+        'discount_amount' => 0,
+        'service_charge' => 0,
+        'total' => 700,
+        'paid_amount' => 700,
+        'due_amount' => 0,
+        'profit' => 100,
+        'status' => 'paid',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('sale_payments')->insert([
+        'sale_id' => $saleId,
+        'register_id' => $otherRegisterId,
+        'payment_method' => 'cash',
+        'amount' => 700,
+        'received_amount' => 700,
+        'change_amount' => 0,
+        'fee_amount' => 0,
+        'paid_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $response = $this->getJson(route('pos.register.close-summary'))
+        ->assertSuccessful()
+        ->assertJsonPath('current_register_cash_balance', 0)
+        ->assertJsonPath('cash_balance_now', 2700)
+        ->assertJsonPath('overall_cash_balance', 2700)
+        ->assertJsonPath('cash_in_cashier', 2700)
+        ->assertJsonPath('overall_cash_breakdown.before', 0)
+        ->assertJsonPath('overall_cash_breakdown.drawer_open_balance', 2000)
+        ->assertJsonPath('overall_cash_breakdown.cash_in', 0)
+        ->assertJsonPath('overall_cash_breakdown.total_sale_cash', 700)
+        ->assertJsonPath('overall_cash_breakdown.cash_out', 0)
+        ->assertJsonPath('overall_cash_breakdown.total_expense_amount', 0)
+        ->assertJsonPath('overall_cash_breakdown.now', 2700);
+
+    expect((float) $response->json('cash_balance_before'))->toBe(0.0);
 });

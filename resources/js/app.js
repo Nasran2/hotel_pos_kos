@@ -1736,11 +1736,13 @@ if (pos) {
                 return;
             }
 
-            expectedCashBalance = Number(data.cash_balance_now || 0);
+            const overallCashBreakdown = data.overall_cash_breakdown || {};
+            const overallCashBalance = Number(overallCashBreakdown.now ?? data.overall_cash_balance ?? data.cash_balance_now ?? data.cash_in_cashier ?? 0);
+            expectedCashBalance = overallCashBalance;
             expectedBankBalance = Number(data.bank_amount || 0);
             expenses = Array.isArray(data.expenses) ? data.expenses : [];
 
-            document.querySelector('[data-cash-in-cashier]').textContent = formatCurrency(data.cash_balance_now);
+            document.querySelector('[data-cash-in-cashier]').textContent = formatCurrency(overallCashBalance);
             const totalCashSalesNode = document.querySelector('[data-total-cash-sales]');
             if (totalCashSalesNode) totalCashSalesNode.textContent = formatCurrency(data.total_sale_cash);
             document.querySelector('[data-bank-amount]').textContent = formatCurrency(data.bank_amount);
@@ -1749,19 +1751,25 @@ if (pos) {
             document.querySelector('[data-takeaway-orders]').textContent = data.total_takeaway_orders;
 
             const overallCashBeforeNode = document.querySelector('[data-overall-cash-before]');
-            if (overallCashBeforeNode) overallCashBeforeNode.textContent = formatCurrency(data.cash_balance_before);
+            if (overallCashBeforeNode) overallCashBeforeNode.textContent = formatCurrency(overallCashBreakdown.before ?? data.cash_balance_before);
 
             const overallCashOpeningNode = document.querySelector('[data-overall-cash-opening]');
-            if (overallCashOpeningNode) overallCashOpeningNode.textContent = formatCurrency(data.cash_drawer_open_balance);
+            if (overallCashOpeningNode) overallCashOpeningNode.textContent = formatCurrency(overallCashBreakdown.drawer_open_balance ?? data.cash_drawer_open_balance);
+
+            const overallCashInNode = document.querySelector('[data-overall-cash-in]');
+            if (overallCashInNode) overallCashInNode.textContent = formatCurrency(overallCashBreakdown.cash_in ?? 0);
 
             const overallCashSalesNode = document.querySelector('[data-overall-cash-sales]');
-            if (overallCashSalesNode) overallCashSalesNode.textContent = formatCurrency(data.total_sale_cash);
+            if (overallCashSalesNode) overallCashSalesNode.textContent = formatCurrency(overallCashBreakdown.total_sale_cash ?? data.total_sale_cash);
+
+            const overallCashOutNode = document.querySelector('[data-overall-cash-out]');
+            if (overallCashOutNode) overallCashOutNode.textContent = formatCurrency(overallCashBreakdown.cash_out ?? 0);
 
             const overallCashExpensesNode = document.querySelector('[data-overall-cash-expenses]');
-            if (overallCashExpensesNode) overallCashExpensesNode.textContent = formatCurrency(data.total_expense_amount);
+            if (overallCashExpensesNode) overallCashExpensesNode.textContent = formatCurrency(overallCashBreakdown.total_expense_amount ?? data.total_expense_amount);
 
             const overallCashNowNode = document.querySelector('[data-overall-cash-now]');
-            if (overallCashNowNode) overallCashNowNode.textContent = formatCurrency(data.cash_balance_now);
+            if (overallCashNowNode) overallCashNowNode.textContent = formatCurrency(overallCashBalance);
 
             if (modalActualCashInput) {
                 modalActualCashInput.value = expectedCashBalance.toFixed(2);

@@ -1856,7 +1856,7 @@
                 <div class="lg:col-span-2 grid gap-3">
                     <div class="grid gap-3 sm:grid-cols-3">
                         <div class="rounded-lg border border-slate-200 p-3 bg-white shadow-sm">
-                            <p class="text-xs font-semibold text-slate-600">Cash in Cashier</p>
+                            <p class="text-xs font-semibold text-slate-600">Overall Cash Balance</p>
                             <p class="mt-1 text-xl font-black text-slate-900" data-cash-in-cashier>Rs. 0.00</p>
                         </div>
 
@@ -1903,8 +1903,16 @@
                                 <span class="text-slate-900" data-overall-cash-opening>Rs. 0.00</span>
                             </div>
                             <div class="flex justify-between">
+                                <span>Cash In (+)</span>
+                                <span class="text-emerald-600" data-overall-cash-in>Rs. 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
                                 <span>Total Sale Cash (+)</span>
                                 <span class="text-emerald-600" data-overall-cash-sales>Rs. 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Cash Out (-)</span>
+                                <span class="text-red-600" data-overall-cash-out>Rs. 0.00</span>
                             </div>
                             <div class="flex justify-between pb-1.5">
                                 <span>Total Expense Amount (-)</span>
