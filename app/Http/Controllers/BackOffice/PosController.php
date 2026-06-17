@@ -825,6 +825,29 @@ class PosController extends Controller
                 'updated_at' => now(),
             ]);
             DB::table('registers')->where('id', $register->id)->update(['status' => 'closed', 'closed_at' => now(), 'updated_at' => now()]);
+
+            if ($difference > 0) {
+                DB::table('cash_ins')->insert([
+                    'register_id' => $register->id,
+                    'user_id' => auth()->id(),
+                    'amount' => $difference,
+                    'note' => trim('Register Close Overage. '.($validated['note'] ?? '')),
+                    'movement_date' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } elseif ($difference < 0) {
+                DB::table('cash_outs')->insert([
+                    'register_id' => $register->id,
+                    'user_id' => auth()->id(),
+                    'amount' => abs($difference),
+                    'note' => trim('Register Close Shortage. '.($validated['note'] ?? '')),
+                    'movement_date' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
             ActivityLog::record('close', 'register', 'Register closed.', ['register_id' => $register->id, 'difference' => $difference]);
         });
 
