@@ -1255,7 +1255,17 @@
             <div class="mt-4">
                 <div class="grid gap-2" data-payment-action-wrap>
                     @can('pos.hold_order')
-                    <button class="btn-secondary hidden w-full justify-center border-red-200 bg-red-50 text-red-600 hover:border-red-300 hover:bg-red-100" data-cancel-hold type="button">Cancel Hold</button>
+                    <div class="relative hidden w-full" data-cancel-hold-wrap>
+                        <button class="btn-secondary w-full justify-center border-red-200 bg-red-50 text-red-600 hover:border-red-300 hover:bg-red-100" data-cancel-hold type="button">Cancel Hold</button>
+                        
+                        <div class="absolute bottom-full left-0 mb-2 hidden w-full animate-pop rounded-xl border border-red-100 bg-white p-3 shadow-xl" data-cancel-confirm-popup>
+                            <p class="text-center text-sm font-black text-slate-700">Cancel this held order?</p>
+                            <div class="mt-2 flex gap-2">
+                                <button type="button" class="btn-secondary flex-1 px-2 py-1.5 text-xs" data-cancel-no>No</button>
+                                <button type="button" class="btn-primary flex-1 bg-red-600 px-2 py-1.5 text-xs hover:bg-red-700" data-cancel-yes>Yes</button>
+                            </div>
+                        </div>
+                    </div>
                     @endcan
 
                     @can('pos.payment')

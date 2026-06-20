@@ -87,7 +87,12 @@ document.querySelectorAll('[data-date-range]').forEach((rangeSelect) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const getDateString = (date) => date.toISOString().split('T')[0];
+        const getDateString = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
 
         switch (range) {
             case 'today': {
@@ -343,9 +348,11 @@ if (pos) {
     };
 
     const syncCancelHoldAction = () => {
-        const cancelHoldButton = document.querySelector('[data-cancel-hold]');
-        const canCancelHold = Boolean(selectedTable && currentHoldId && ['hold', 'payment_pending'].includes(currentHoldStatus));
-        cancelHoldButton?.classList.toggle('hidden', !canCancelHold);
+        const cancelHoldWrap = document.querySelector('[data-cancel-hold-wrap]');
+        const canCancelHold = Boolean(currentHoldId && ['hold', 'payment_pending'].includes(currentHoldStatus));
+        cancelHoldWrap?.classList.toggle('hidden', !canCancelHold);
+        
+        document.querySelector('[data-cancel-confirm-popup]')?.classList.add('hidden');
 
         const actionWrap = document.querySelector('[data-payment-action-wrap]');
         actionWrap?.classList.toggle('sm:grid-cols-2', canCancelHold);
@@ -752,6 +759,8 @@ if (pos) {
             }
         }
 
+        updateOrderHeader();
+        syncCancelHoldAction();
         render();
     };
 
@@ -1116,12 +1125,21 @@ if (pos) {
         }
     });
 
-    document.querySelector('[data-cancel-hold]')?.addEventListener('click', async () => {
-        if (!selectedTable || !currentHoldId || !['hold', 'payment_pending'].includes(currentHoldStatus)) {
+    const cancelHoldPopup = document.querySelector('[data-cancel-confirm-popup]');
+    document.querySelector('[data-cancel-hold]')?.addEventListener('click', () => {
+        if (!currentHoldId || !['hold', 'payment_pending'].includes(currentHoldStatus)) {
             showPosToast('Select a hold table or waiting payment table first.');
             return;
         }
+        cancelHoldPopup?.classList.remove('hidden');
+    });
 
+    document.querySelector('[data-cancel-no]')?.addEventListener('click', () => {
+        cancelHoldPopup?.classList.add('hidden');
+    });
+
+    document.querySelector('[data-cancel-yes]')?.addEventListener('click', async () => {
+        cancelHoldPopup?.classList.add('hidden');
         try {
             await deleteJson(`${pos.dataset.cancelHoldUrl}/${currentHoldId}`);
             window.location.reload();
