@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('order_tokens', function (Blueprint $table) {
+            $table->engine = 'InnoDB';
             $table->id();
             $table->date('token_date');
             $table->unsignedBigInteger('token_number');

@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('daily_token_counters', function (Blueprint $table) {
+            $table->engine = 'InnoDB';
             $table->id();
             $table->date('token_date')->unique();
             $table->unsignedBigInteger('last_number')->default(0);
