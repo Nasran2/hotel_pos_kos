@@ -103,6 +103,15 @@ $changeAmount = $payments->sum(fn ($payment) => (float) ($payment->change_amount
             padding: 3px 10px;
         }
 
+        .token-number {
+            margin: 7px 0 0;
+            color: #000000;
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-align: center;
+        }
+
         .receipt-line {
             display: flex;
             justify-content: space-between;
@@ -279,6 +288,7 @@ $changeAmount = $payments->sum(fn ($payment) => (float) ($payment->change_amount
             @if(! empty($settings['business_tagline']))
             <p class="business-line">{{ $settings['business_tagline'] }}</p>
             @endif
+            <p class="token-number">TOKEN NO: {{ $sale->token_number ? str_pad((string) $sale->token_number, 2, '0', STR_PAD_LEFT) : '-' }}</p>
             @if(! empty($settings['business_address']))
             <p class="business-line">{{ $settings['business_address'] }}</p>
             @endif

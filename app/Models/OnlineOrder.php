@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'register_id',
     'online_order_source_id',
     'sale_id',
+    'order_token_id',
     'order_reference',
     'customer_id',
     'customer_name',
@@ -61,6 +62,14 @@ class OnlineOrder extends Model
     public function source(): BelongsTo
     {
         return $this->belongsTo(OnlineOrderSource::class, 'online_order_source_id');
+    }
+
+    /**
+     * @return BelongsTo<OrderToken, $this>
+     */
+    public function orderToken(): BelongsTo
+    {
+        return $this->belongsTo(OrderToken::class);
     }
 
     /**

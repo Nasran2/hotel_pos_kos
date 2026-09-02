@@ -96,7 +96,11 @@
 
                 <!-- Details Grid -->
                 <div class="border-t border-slate-100 bg-slate-50/50 p-5 sm:p-6">
-                    <div class="grid gap-4 sm:grid-cols-3">
+                    <div class="grid gap-4 sm:grid-cols-4">
+                        <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
+                            <p class="text-xs font-black uppercase tracking-widest text-blue-500">Token No</p>
+                            <p class="mt-1 text-xl font-black text-blue-700">{{ $record->formatted_token ?? '-' }}</p>
+                        </div>
                         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                             <p class="text-xs font-black uppercase tracking-widest text-slate-400">Customer</p>
                             <p class="mt-1 font-bold text-slate-800">{{ $customerName }}</p>

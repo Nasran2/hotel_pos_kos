@@ -951,6 +951,7 @@
     <div id="pos-root" class="pos-neo grid gap-4 xl:grid-cols-[1fr_27rem]"
         data-currency="{{ $settings['currency_symbol'] }}" data-pay-url="{{ route('pos.pay') }}"
         data-hold-url="{{ route('pos.hold') }}" data-print-url="{{ route('pos.print') }}"
+        data-next-token-url="{{ route('pos.next-token') }}"
         data-cancel-hold-url="{{ url('/pos/hold') }}"
         data-register-close-summary-url="{{ route('pos.register.close-summary') }}"
         data-service-charge-enabled="{{ $settings['pos_enable_service_charge'] ? '1' : '0' }}"
@@ -981,6 +982,12 @@
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex min-w-28 items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 shadow-sm"
+                            title="Next available token for {{ $nextToken['date'] }}">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-blue-600">Next Token</span>
+                            <strong class="text-2xl font-black leading-none text-blue-700" data-next-token>{{ $nextToken['display'] }}</strong>
+                        </div>
+
                         @can('pos.payment')
                         <button class="btn-secondary" data-modal-open="customer-due-payment-modal" type="button">Receive Due Payment</button>
                         @endcan
@@ -1038,7 +1045,7 @@
                             <strong>Table {{ $table->number }}</strong>
                             <small>
                                 {{ $activeOrder
-                        ? $statusLabel . ' - ' . $settings['currency_symbol'] . ' ' . number_format((float) $activeOrder->total, 2)
+                        ? ($activeOrder->token_number ? 'Token ' . str_pad((string) $activeOrder->token_number, 2, '0', STR_PAD_LEFT) . ' · ' : '') . $statusLabel . ' - ' . $settings['currency_symbol'] . ' ' . number_format((float) $activeOrder->total, 2)
                         : $statusLabel }}
                             </small>
                         </span>
@@ -1065,7 +1072,7 @@
                             data-hold-id="{{ $hold->id }}" data-resume-url="{{ route('pos.resume-held-order', $hold->id) }}">
                             <span class="min-w-0">
                                 <strong>Takeaway #{{ $hold->id }}</strong>
-                                <small>{{ $hold->customer_name ?? 'Walk-in Customer' }} - {{ $settings['currency_symbol'] }} {{ number_format((float) $hold->total, 2) }}</small>
+                                <small>{{ $hold->token_number ? 'Token '.str_pad((string) $hold->token_number, 2, '0', STR_PAD_LEFT).' · ' : '' }}{{ $hold->customer_name ?? 'Walk-in Customer' }} - {{ $settings['currency_symbol'] }} {{ number_format((float) $hold->total, 2) }}</small>
                             </span>
 
                             <em class="status-pill {{ $hold->status }}">{{ $statusLabel }}</em>
@@ -1129,8 +1136,12 @@
                     <span class="status-pill active mt-2 inline-block" data-order-mode>No table</span>
                 </div>
 
-                <span class="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-500"
-                    data-selected-waiter>No waiter</span>
+                <div class="flex flex-col items-end gap-2">
+                    <span class="hidden rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700"
+                        data-current-token-wrap>Token <strong class="ml-1 text-base" data-current-token></strong></span>
+                    <span class="rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-slate-500"
+                        data-selected-waiter>No waiter</span>
+                </div>
             </div>
 
             <div class="mt-4 grid grid-cols-3 gap-3">
@@ -1289,6 +1300,9 @@
             @if(! empty($settings['business_tagline']))
             <p style="margin: 2px 0 0; font-size: 10px; font-weight: 700; color: #475569;">{{ $settings['business_tagline'] }}</p>
             @endif
+            <p style="margin: 7px 0 0; text-align: center; font-size: 14px; font-weight: 900; letter-spacing: 0.04em; color: #111827;">
+                TOKEN NO: <span data-print-token>-</span>
+            </p>
             @if(! empty($settings['business_address']))
             <p style="margin: 2px 0 0; font-size: 9.5px; color: #64748b;">{{ $settings['business_address'] }}</p>
             @endif

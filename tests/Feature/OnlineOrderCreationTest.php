@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\OnlineOrder;
 use App\Models\OnlineOrderSource;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -9,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 beforeEach(function () {
     // Run seeders to set up test data
     $this->seed(DatabaseSeeder::class);
-    
+
     $this->user = User::where('username', 'admin')->firstOrFail();
     $this->actingAs($this->user);
 
@@ -62,9 +61,10 @@ test('online order requires platform selection', function () {
 });
 
 test('online order with valid platform selection creates order', function () {
+    $orderReference = 'TEST-'.time();
     $response = $this->post(route('online-orders.store'), [
         'online_order_source_id' => $this->source->id,
-        'order_reference' => 'TEST-' . time(),
+        'order_reference' => $orderReference,
         'customer_name' => 'John Doe',
         'customer_phone' => '0771234567',
         'delivery_address' => 'Test Address',
@@ -85,14 +85,25 @@ test('online order with valid platform selection creates order', function () {
     if ($response->getSession()->has('errors')) {
         $errors = $response->getSession()->get('errors');
         $errorMessages = is_array($errors) ? $errors : $errors->getMessages();
-        $this->fail('Validation errors: ' . json_encode($errorMessages));
+        $this->fail('Validation errors: '.json_encode($errorMessages));
     }
-    
+
     $response->assertRedirect();
     $this->assertDatabaseHas('online_orders', [
         'online_order_source_id' => $this->source->id,
         'customer_name' => 'John Doe',
     ]);
+
+    $order = DB::table('online_orders')->where('order_reference', $orderReference)->first();
+    $sale = DB::table('sales')->where('id', $order->sale_id)->first();
+
+    expect($order->order_token_id)->not->toBeNull()
+        ->and((int) $sale->order_token_id)->toBe((int) $order->order_token_id)
+        ->and((int) DB::table('order_tokens')->where('id', $order->order_token_id)->value('token_number'))->toBe(1);
+
+    $this->get(route('online-orders.print', $order->id))
+        ->assertSuccessful()
+        ->assertSee('TOKEN NO: 01');
 });
 
 test('online order requires customer name', function () {

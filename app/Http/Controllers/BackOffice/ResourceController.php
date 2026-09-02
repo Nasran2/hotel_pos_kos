@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\DailyTokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,12 +20,22 @@ use Illuminate\View\View;
 
 class ResourceController extends Controller
 {
+    public function __construct(private readonly DailyTokenService $dailyTokenService) {}
+
     public function index(Request $request, string $module): View
     {
         $config = $this->module($module);
         $this->authorize("{$config['permission_prefix']}.view");
 
-        $query = DB::table($config['table'])->latest();
+        $query = DB::table($config['table']);
+
+        if ($module === 'sales') {
+            $query->leftJoin('order_tokens', 'order_tokens.id', '=', 'sales.order_token_id')
+                ->select('sales.*', 'order_tokens.token_number', 'order_tokens.token_date')
+                ->orderByDesc('sales.id');
+        } else {
+            $query->latest();
+        }
 
         if ($module === 'users') {
             $query = $query->leftJoin('user_roles', 'user_roles.user_id', '=', 'users.id')
@@ -186,6 +197,12 @@ class ResourceController extends Controller
                 $role = Role::query()->create(Arr::except($payload, ['permissions']));
                 $role->permissions()->sync(Permission::query()->whereIn('name', $request->input('permissions', []))->pluck('id'));
                 $recordId = $role->id;
+            } elseif ($module === 'sales') {
+                $orderToken = $this->dailyTokenService->issue();
+                $recordId = DB::table($config['table'])->insertGetId($this->stamp([
+                    ...$payload,
+                    'order_token_id' => $orderToken->id,
+                ]));
             } else {
                 $recordId = DB::table($config['table'])->insertGetId($this->stamp($payload));
                 $this->afterStore($module, $recordId, $payload);
@@ -227,6 +244,14 @@ class ResourceController extends Controller
         $record = $this->record($config, $id);
 
         if ($module === 'sales') {
+            if ($record->order_token_id) {
+                $orderToken = DB::table('order_tokens')->where('id', $record->order_token_id)->first();
+                $record->token_number = $orderToken?->token_number;
+                $record->token_date = $orderToken?->token_date;
+                $record->formatted_token = $orderToken?->token_number
+                    ? $this->dailyTokenService->format((int) $orderToken->token_number)
+                    : null;
+            }
             $record->deducted_amount = (float) DB::table('sale_deductions')->where('sale_id', $id)->sum('amount');
             $record->items = DB::table('sale_items')->where('sale_id', $id)->get();
 
@@ -288,6 +313,7 @@ class ResourceController extends Controller
             ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
             ->leftJoin('waiters', 'waiters.id', '=', 'sales.waiter_id')
             ->leftJoin('restaurant_tables', 'restaurant_tables.id', '=', 'sales.restaurant_table_id')
+            ->leftJoin('order_tokens', 'order_tokens.id', '=', 'sales.order_token_id')
             ->where('sales.id', $id)
             ->whereNull('sales.deleted_at')
             ->select([
@@ -295,6 +321,8 @@ class ResourceController extends Controller
                 'customers.name as customer_name',
                 'waiters.name as waiter_name',
                 'restaurant_tables.number as table_number',
+                'order_tokens.token_number',
+                'order_tokens.token_date',
             ])
             ->firstOrFail();
 
@@ -331,7 +359,7 @@ class ResourceController extends Controller
                     'products.name as product_name',
                     'products.barcode',
                     'products.cost_price',
-                    'products.selling_price'
+                    'products.selling_price',
                 ])
                 ->get();
 
@@ -377,7 +405,7 @@ class ResourceController extends Controller
             } elseif ($module === 'sales') {
                 $sale = DB::table('sales')->where('id', $id)->first();
                 $oldItems = DB::table('sale_items')->where('sale_id', $id)->get();
-                
+
                 // Revert old stock
                 foreach ($oldItems as $oldItem) {
                     $product = DB::table('products')->where('id', $oldItem->product_id)->first();
@@ -386,31 +414,31 @@ class ResourceController extends Controller
                         DB::table('stock_movements')->where('source_type', 'sale')->where('source_id', $id)->where('product_id', $product->id)->delete();
                     }
                 }
-                
+
                 DB::table('sale_items')->where('sale_id', $id)->delete();
-                
+
                 $items = $request->input('items', []);
                 $subtotal = 0;
                 $profit = 0;
                 $now = now();
                 $discountAmount = (float) $request->input('discount_amount', 0);
-                
+
                 foreach ($items as $item) {
                     $product = DB::table('products')->where('id', $item['product_id'])->first();
                     $quantity = (float) $item['quantity'];
                     $unitPrice = (float) $item['unit_price'];
                     $discountPercent = (float) ($item['discount_percent'] ?? 0);
-                    
+
                     $gross = $quantity * $unitPrice;
                     $itemDiscount = $gross * ($discountPercent / 100);
                     $lineTotal = max(0, $gross - $itemDiscount);
-                    
+
                     $productCost = $product ? (float) $product->cost_price : 0.0;
                     $itemProfit = (($unitPrice - $productCost) * $quantity) - $itemDiscount;
-                    
+
                     $subtotal += $gross;
                     $profit += $itemProfit;
-                    
+
                     DB::table('sale_items')->insert([
                         'sale_id' => $id,
                         'product_id' => $product ? $product->id : ($item['product_id'] ?? null),
@@ -425,7 +453,7 @@ class ResourceController extends Controller
                         'created_at' => $now,
                         'updated_at' => $now,
                     ]);
-                    
+
                     if ($product && $product->maintain_stock) {
                         $balance = $product->stock_quantity - $quantity;
                         DB::table('products')->where('id', $product->id)->update(['stock_quantity' => $balance, 'updated_at' => $now]);
@@ -441,15 +469,15 @@ class ResourceController extends Controller
                         ]);
                     }
                 }
-                
+
                 $total = max(0, $subtotal - $discountAmount + $sale->service_charge);
                 $paid = (float) $sale->paid_amount;
                 $due = max(0, $total - $paid);
                 $status = $due > 0 ? 'due' : 'paid';
-                
+
                 // Proportionally reduce profit by global discount
                 $profit = $profit - $discountAmount;
-                
+
                 DB::table('sales')->where('id', $id)->update([
                     'customer_id' => $request->input('customer_id') ?: null,
                     'waiter_id' => $request->input('waiter_id') ?: null,
@@ -1218,7 +1246,7 @@ class ResourceController extends Controller
     private function customerShowData(int $customerId): array
     {
         $range = request()->string('range', 'all_time')->toString();
-        
+
         [$from, $to] = match ($range) {
             'today' => [\Carbon\Carbon::today()->startOfDay(), \Carbon\Carbon::today()->endOfDay()],
             'yesterday' => [\Carbon\Carbon::yesterday()->startOfDay(), \Carbon\Carbon::yesterday()->endOfDay()],
@@ -1516,7 +1544,7 @@ class ResourceController extends Controller
     private function waiterShowData(int $waiterId): array
     {
         $range = request()->string('range', 'today')->toString();
-        
+
         [$from, $to] = match ($range) {
             'yesterday' => [\Carbon\Carbon::yesterday()->startOfDay(), \Carbon\Carbon::yesterday()->endOfDay()],
             'this_week' => [\Carbon\Carbon::now()->startOfWeek(), \Carbon\Carbon::now()->endOfWeek()],

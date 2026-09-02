@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\OrderToken;
 use App\Models\User;
+use App\Services\DailyTokenService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,6 +19,8 @@ use Illuminate\View\View;
 
 class PosController extends Controller
 {
+    public function __construct(private readonly DailyTokenService $dailyTokenService) {}
+
     public function index(): View
     {
         $this->authorize('pos.access');
@@ -28,10 +32,18 @@ class PosController extends Controller
             'customers' => DB::table('customers')->where('is_active', true)->whereNull('deleted_at')->orderByDesc('is_walk_in')->orderBy('name')->get(),
             'categories' => DB::table('categories')->where('is_active', true)->whereNull('deleted_at')->orderBy('name')->get(),
             'products' => DB::table('products')->where('is_active', true)->whereNull('deleted_at')->orderBy('name')->get(),
-            'holds' => DB::table('hold_orders')->whereNotNull('restaurant_table_id')->whereIn('status', ['hold', 'payment_pending'])->whereNull('deleted_at')->get()->keyBy('restaurant_table_id'),
+            'holds' => DB::table('hold_orders')
+                ->leftJoin('order_tokens', 'order_tokens.id', '=', 'hold_orders.order_token_id')
+                ->select('hold_orders.*', 'order_tokens.token_number', 'order_tokens.token_date')
+                ->whereNotNull('restaurant_table_id')
+                ->whereIn('status', ['hold', 'payment_pending'])
+                ->whereNull('deleted_at')
+                ->get()
+                ->keyBy('restaurant_table_id'),
             'takeawayHolds' => DB::table('hold_orders')
                 ->leftJoin('customers', 'customers.id', '=', 'hold_orders.customer_id')
-                ->select('hold_orders.*', 'customers.name as customer_name')
+                ->leftJoin('order_tokens', 'order_tokens.id', '=', 'hold_orders.order_token_id')
+                ->select('hold_orders.*', 'customers.name as customer_name', 'order_tokens.token_number', 'order_tokens.token_date')
                 ->whereNull('hold_orders.restaurant_table_id')
                 ->whereIn('hold_orders.status', ['hold', 'payment_pending'])
                 ->whereNull('hold_orders.deleted_at')
@@ -42,7 +54,15 @@ class PosController extends Controller
             'dueCustomers' => $this->customerDueOptions(),
             'dueSuppliers' => $this->supplierDueOptions(),
             'settings' => $this->settings(),
+            'nextToken' => $this->dailyTokenService->nextAvailable(),
         ]);
+    }
+
+    public function nextToken(): JsonResponse
+    {
+        $this->authorize('pos.access');
+
+        return response()->json($this->dailyTokenService->nextAvailable());
     }
 
     public function openRegister(Request $request): RedirectResponse
@@ -75,10 +95,15 @@ class PosController extends Controller
         $payload = $this->cartPayload($request);
 
         return DB::transaction(function () use ($payload): JsonResponse {
-            $holdId = $this->storePendingOrder($payload, 'hold', 'hold');
-            ActivityLog::record('hold', 'pos', 'Order held.', ['hold_id' => $holdId]);
+            $orderToken = $this->resolveOrderToken($payload);
+            $holdId = $this->storePendingOrder($payload, $orderToken, 'hold', 'hold');
+            ActivityLog::record('hold', 'pos', 'Order held.', ['hold_id' => $holdId, 'token' => $orderToken->token_number]);
 
-            return response()->json(['message' => 'Order held.', 'hold_id' => $holdId]);
+            return response()->json([
+                'message' => 'Order held.',
+                'hold_id' => $holdId,
+                ...$this->tokenResponse($orderToken),
+            ]);
         });
     }
 
@@ -86,26 +111,38 @@ class PosController extends Controller
     {
         $this->authorize('pos.resume_hold_order');
 
-        $hold = DB::table('hold_orders')->where('restaurant_table_id', $table)->whereIn('status', ['hold', 'payment_pending'])->whereNull('deleted_at')->latest()->first();
-        abort_if(! $hold, 404);
+        return DB::transaction(function () use ($table): JsonResponse {
+            $hold = DB::table('hold_orders')
+                ->where('restaurant_table_id', $table)
+                ->whereIn('status', ['hold', 'payment_pending'])
+                ->whereNull('deleted_at')
+                ->latest()
+                ->lockForUpdate()
+                ->first();
+            abort_if(! $hold, 404);
 
-        $items = DB::table('hold_order_items')->where('hold_order_id', $hold->id)->get();
-        ActivityLog::record('resume', 'pos', 'Held order resumed.', ['hold_id' => $hold->id]);
+            $hold = $this->ensureHoldToken($hold);
+            $items = DB::table('hold_order_items')->where('hold_order_id', $hold->id)->get();
+            ActivityLog::record('resume', 'pos', 'Held order resumed.', ['hold_id' => $hold->id, 'token' => $hold->token_number]);
 
-        return response()->json(['hold' => $hold, 'items' => $items]);
+            return response()->json(['hold' => $hold, 'items' => $items]);
+        });
     }
 
     public function resumeHeldOrder(int $hold): JsonResponse
     {
         $this->authorize('pos.resume_hold_order');
 
-        $holdOrder = DB::table('hold_orders')->where('id', $hold)->whereIn('status', ['hold', 'payment_pending'])->whereNull('deleted_at')->first();
-        abort_if(! $holdOrder, 404);
+        return DB::transaction(function () use ($hold): JsonResponse {
+            $holdOrder = DB::table('hold_orders')->where('id', $hold)->whereIn('status', ['hold', 'payment_pending'])->whereNull('deleted_at')->lockForUpdate()->first();
+            abort_if(! $holdOrder, 404);
 
-        $items = DB::table('hold_order_items')->where('hold_order_id', $holdOrder->id)->get();
-        ActivityLog::record('resume', 'pos', 'Held order resumed.', ['hold_id' => $holdOrder->id]);
+            $holdOrder = $this->ensureHoldToken($holdOrder);
+            $items = DB::table('hold_order_items')->where('hold_order_id', $holdOrder->id)->get();
+            ActivityLog::record('resume', 'pos', 'Held order resumed.', ['hold_id' => $holdOrder->id, 'token' => $holdOrder->token_number]);
 
-        return response()->json(['hold' => $holdOrder, 'items' => $items]);
+            return response()->json(['hold' => $holdOrder, 'items' => $items]);
+        });
     }
 
     public function cancelHold(int $hold): JsonResponse
@@ -383,14 +420,17 @@ class PosController extends Controller
         $payload = $this->cartPayload($request);
 
         return DB::transaction(function () use ($payload): JsonResponse {
+            $orderToken = $this->resolveOrderToken($payload);
             $invoice = $this->pendingInvoice($payload) ?? $this->nextInvoice();
-            $holdId = $this->storePendingOrder($payload, 'payment_pending', 'payment_pending', $invoice);
-            ActivityLog::record('print', 'pos', 'Pre-payment bill printed.', ['hold_id' => $holdId, 'invoice' => $invoice, 'table_id' => $payload['table_id'] ?? null]);
+            $holdId = $this->storePendingOrder($payload, $orderToken, 'payment_pending', 'payment_pending', $invoice);
+            ActivityLog::record('print', 'pos', 'Pre-payment bill printed.', ['hold_id' => $holdId, 'invoice' => $invoice, 'table_id' => $payload['table_id'] ?? null, 'token' => $orderToken->token_number]);
 
             return response()->json([
                 'message' => 'Bill marked as printed.',
                 'hold_id' => $holdId,
                 'invoice' => $invoice,
+                'order_date' => now()->format('d/m/Y, H:i:s'),
+                ...$this->tokenResponse($orderToken),
             ]);
         });
     }
@@ -416,6 +456,7 @@ class PosController extends Controller
             $register = $this->currentRegister();
             abort_unless($register, 422, 'Open register before taking payment.');
 
+            $orderToken = $this->resolveOrderToken($payload);
             $invoice = $this->pendingInvoice($payload) ?? $this->nextInvoice();
             $total = round((float) $payload['total'], 2);
             $received = $paymentMethod === 'due' ? 0.0 : round((float) $request->input('received_amount', $total), 2);
@@ -436,6 +477,7 @@ class PosController extends Controller
                 'waiter_id' => $payload['waiter_id'],
                 'restaurant_table_id' => $payload['table_id'],
                 'invoice_no' => $invoice,
+                'order_token_id' => $orderToken->id,
                 'sale_date' => now(),
                 'subtotal' => $payload['subtotal'],
                 'discount_amount' => $payload['discount_amount'],
@@ -565,7 +607,7 @@ class PosController extends Controller
             }
 
             $this->completePendingOrder($payload);
-            ActivityLog::record('create', 'sales', 'Sale completed.', ['sale_id' => $saleId, 'invoice' => $invoice]);
+            ActivityLog::record('create', 'sales', 'Sale completed.', ['sale_id' => $saleId, 'invoice' => $invoice, 'token' => $orderToken->token_number]);
 
             return response()->json([
                 'message' => $dueAmount > 0 ? 'Payment saved with due balance.' : 'Payment completed.',
@@ -577,6 +619,8 @@ class PosController extends Controller
                 'due_amount' => $dueAmount,
                 'status' => $dueAmount > 0 ? 'due' : 'paid',
                 'total' => $payload['total'],
+                'order_date' => now()->format('d/m/Y, H:i:s'),
+                ...$this->tokenResponse($orderToken),
             ]);
         });
     }
@@ -862,7 +906,7 @@ class PosController extends Controller
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function storePendingOrder(array $payload, string $orderStatus, string $tableStatus, ?string $invoice = null): int
+    private function storePendingOrder(array $payload, OrderToken $orderToken, string $orderStatus, string $tableStatus, ?string $invoice = null): int
     {
         if ($payload['hold_id']) {
             DB::table('hold_orders')->where('id', $payload['hold_id'])->whereIn('status', ['hold', 'payment_pending'])->update([
@@ -884,6 +928,7 @@ class PosController extends Controller
             'waiter_id' => $payload['waiter_id'] ?? null,
             'restaurant_table_id' => $payload['table_id'],
             'invoice_no' => $invoice,
+            'order_token_id' => $orderToken->id,
             'subtotal' => $payload['subtotal'],
             'discount_amount' => $payload['discount_amount'],
             'service_charge' => $payload['service_charge'],
@@ -915,6 +960,82 @@ class PosController extends Controller
         }
 
         return $holdId;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function resolveOrderToken(array $payload): OrderToken
+    {
+        $holdOrder = null;
+
+        if ($payload['hold_id']) {
+            $holdOrder = DB::table('hold_orders')
+                ->where('id', $payload['hold_id'])
+                ->whereIn('status', ['hold', 'payment_pending'])
+                ->whereNull('deleted_at')
+                ->lockForUpdate()
+                ->first();
+
+            abort_if(! $holdOrder, 422, 'This held order is no longer active.');
+        } elseif ($payload['table_id']) {
+            $holdOrder = DB::table('hold_orders')
+                ->where('restaurant_table_id', $payload['table_id'])
+                ->whereIn('status', ['hold', 'payment_pending'])
+                ->whereNull('deleted_at')
+                ->latest()
+                ->lockForUpdate()
+                ->first();
+        }
+
+        if ($holdOrder?->order_token_id) {
+            return OrderToken::query()->findOrFail($holdOrder->order_token_id);
+        }
+
+        $orderToken = $this->dailyTokenService->issue();
+
+        if ($holdOrder) {
+            DB::table('hold_orders')->where('id', $holdOrder->id)->update([
+                'order_token_id' => $orderToken->id,
+                'updated_at' => now(),
+            ]);
+        }
+
+        return $orderToken;
+    }
+
+    private function ensureHoldToken(object $holdOrder): object
+    {
+        $orderToken = $holdOrder->order_token_id
+            ? OrderToken::query()->findOrFail($holdOrder->order_token_id)
+            : $this->dailyTokenService->issue();
+
+        if (! $holdOrder->order_token_id) {
+            DB::table('hold_orders')->where('id', $holdOrder->id)->update([
+                'order_token_id' => $orderToken->id,
+                'updated_at' => now(),
+            ]);
+            $holdOrder->order_token_id = $orderToken->id;
+        }
+
+        $holdOrder->token_number = $orderToken->token_number;
+        $holdOrder->token_date = $orderToken->token_date->toDateString();
+        $holdOrder->formatted_token = $this->dailyTokenService->format($orderToken->token_number);
+
+        return $holdOrder;
+    }
+
+    /**
+     * @return array{token_number: int, token_date: string, formatted_token: string, next_token: array{date: string, number: int, display: string}}
+     */
+    private function tokenResponse(OrderToken $orderToken): array
+    {
+        return [
+            'token_number' => $orderToken->token_number,
+            'token_date' => $orderToken->token_date->toDateString(),
+            'formatted_token' => $this->dailyTokenService->format($orderToken->token_number),
+            'next_token' => $this->dailyTokenService->nextAvailable(),
+        ];
     }
 
     /**

@@ -11,6 +11,7 @@
         <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
             <div>
                 <h1 class="text-2xl font-black">Online Order Invoice</h1>
+                <p class="mt-2 text-lg font-black text-blue-700">TOKEN NO: {{ $order->token_number ? str_pad((string) $order->token_number, 2, '0', STR_PAD_LEFT) : '-' }}</p>
                 <p class="text-sm font-semibold text-slate-500">Reference: {{ $order->order_reference }}</p>
                 <p class="text-sm font-semibold text-slate-500">Platform: {{ $order->source_name }}</p>
             </div>

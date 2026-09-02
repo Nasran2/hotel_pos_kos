@@ -42,6 +42,9 @@
                                     @endcan
                                 @endif
                             @endforeach
+                            @if($module === 'sales')
+                                <th class="px-4 py-3">Token No</th>
+                            @endif
                             @if($module === 'customers')
                                 <th class="px-4 py-3">Due Amount</th>
                             @endif
@@ -102,6 +105,11 @@
                                         @endcan
                                     @endif
                                 @endforeach
+                                @if($module === 'sales')
+                                    <td class="px-4 py-3 font-black text-blue-700">
+                                        {{ $record->token_number ? str_pad((string) $record->token_number, 2, '0', STR_PAD_LEFT) : '-' }}
+                                    </td>
+                                @endif
                                 @if($module === 'customers')
                                     <td class="px-4 py-3 font-black {{ ((float) ($record->due_balance ?? 0)) > 0 ? 'text-red-600' : 'text-emerald-700' }}">
                                         Rs. {{ number_format((float) ($record->due_balance ?? 0), 2) }}

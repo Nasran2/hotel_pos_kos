@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\OnlineOrder;
 use App\Models\OnlineOrderSource;
+use App\Services\DailyTokenService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,8 @@ use Illuminate\View\View;
 
 class OnlineOrderController extends Controller
 {
+    public function __construct(private readonly DailyTokenService $dailyTokenService) {}
+
     public function index(Request $request): View|RedirectResponse
     {
         $this->authorize('online_orders.view');
@@ -27,7 +30,8 @@ class OnlineOrderController extends Controller
 
         $orders = OnlineOrder::query()
             ->leftJoin('online_order_sources', 'online_order_sources.id', '=', 'online_orders.online_order_source_id')
-            ->select('online_orders.*', 'online_order_sources.name as source_name')
+            ->leftJoin('order_tokens', 'order_tokens.id', '=', 'online_orders.order_token_id')
+            ->select('online_orders.*', 'online_order_sources.name as source_name', 'order_tokens.token_number', 'order_tokens.token_date')
             ->when($request->filled('source_id') && $request->input('source_id') !== 'all', fn ($query) => $query->where('online_order_source_id', (int) $request->input('source_id')))
             ->when($request->filled('order_status') && $request->input('order_status') !== 'all', fn ($query) => $query->where('order_status', $request->input('order_status')))
             ->when($request->filled('payment_status') && $request->input('payment_status') !== 'all', fn ($query) => $query->where('payment_status', $request->input('payment_status')))
@@ -140,8 +144,10 @@ class OnlineOrderController extends Controller
         $paymentStatus = $balanceAmount <= 0.0001 ? 'paid' : ($paidAmount > 0 ? 'partially_paid' : $validated['payment_status']);
 
         DB::transaction(function () use ($register, $validated, $lineItems, $source, $subtotal, $discountType, $discountValue, $discountAmount, $deliveryCharge, $commissionType, $commissionValue, $commissionAmount, $total, $paidAmount, $balanceAmount, $paymentStatus): void {
+            $orderToken = $this->dailyTokenService->issue();
             $onlineOrderId = DB::table('online_orders')->insertGetId([
                 'register_id' => $register->id,
+                'order_token_id' => $orderToken->id,
                 'online_order_source_id' => (int) $validated['online_order_source_id'],
                 'order_reference' => $validated['order_reference'],
                 'customer_name' => $validated['customer_name'],
@@ -188,6 +194,7 @@ class OnlineOrderController extends Controller
                 'register_id' => $register->id,
                 'user_id' => auth()->id(),
                 'invoice_no' => $validated['order_reference'],
+                'order_token_id' => $orderToken->id,
                 'sale_date' => now(),
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
@@ -315,6 +322,7 @@ class OnlineOrderController extends Controller
                 'online_order_id' => $onlineOrderId,
                 'sale_id' => $saleId,
                 'reference' => $validated['order_reference'],
+                'token' => $orderToken->token_number,
             ]);
         });
 
@@ -477,7 +485,8 @@ class OnlineOrderController extends Controller
 
         $order = OnlineOrder::query()
             ->leftJoin('online_order_sources', 'online_order_sources.id', '=', 'online_orders.online_order_source_id')
-            ->select('online_orders.*', 'online_order_sources.name as source_name')
+            ->leftJoin('order_tokens', 'order_tokens.id', '=', 'online_orders.order_token_id')
+            ->select('online_orders.*', 'online_order_sources.name as source_name', 'order_tokens.token_number', 'order_tokens.token_date')
             ->where('online_orders.id', $onlineOrder)
             ->firstOrFail();
 

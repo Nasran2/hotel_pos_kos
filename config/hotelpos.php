@@ -256,7 +256,7 @@ return [
             'table' => 'sales',
             'icon' => 'L',
             'permission_prefix' => 'sales',
-            'search' => ['invoice_no', 'status', 'note'],
+            'search' => ['sales.invoice_no', 'order_tokens.token_number', 'sales.status', 'sales.note'],
             'filters' => ['order_channel' => ['All', 'online', 'pos']],
             'fields' => [
                 'invoice_no' => ['label' => 'Invoice No', 'type' => 'text', 'required' => true],

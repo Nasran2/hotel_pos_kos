@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
 
         Route::get('/pos', [PosController::class, 'index'])->middleware('permission:pos.access')->name('pos.index');
+        Route::get('/pos/next-token', [PosController::class, 'nextToken'])->middleware('permission:pos.access')->name('pos.next-token');
         Route::post('/pos/register/open', [PosController::class, 'openRegister'])->middleware('permission:pos.open_register')->name('pos.register.open');
         Route::post('/pos/register/close', [PosController::class, 'closeRegister'])->middleware('permission:pos.close_register')->name('pos.register.close');
         Route::get('/pos/register/close-summary', [PosController::class, 'getRegisterCloseSummary'])->middleware('permission:pos.close_register')->name('pos.register.close-summary');

@@ -278,6 +278,7 @@ if (pos) {
     let selectedWaiter = null;
     let currentHoldId = null;
     let currentHoldStatus = null;
+    let currentToken = null;
     let paymentMethod = 'cash';
     const customerInput = document.querySelector('[data-customer-search-input]');
     const customerIdInput = document.querySelector('[data-customer-id]');
@@ -295,6 +296,7 @@ if (pos) {
     let posToastTimer = null;
 
     const money = (value) => `${currency} ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const formatToken = (value) => String(Number(value || 0)).padStart(2, '0');
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -328,6 +330,13 @@ if (pos) {
     const updateOrderHeader = () => {
         const tableLabel = document.querySelector('[data-selected-table]');
         const orderMode = document.querySelector('[data-order-mode]');
+        const currentTokenWrap = document.querySelector('[data-current-token-wrap]');
+        const currentTokenElement = document.querySelector('[data-current-token]');
+
+        currentTokenWrap?.classList.toggle('hidden', !currentToken);
+        if (currentTokenElement) {
+            currentTokenElement.textContent = currentToken ? formatToken(currentToken) : '';
+        }
 
         if (selectedTable) {
             if (tableLabel) {
@@ -374,6 +383,7 @@ if (pos) {
         selectedTable = null;
         currentHoldId = null;
         currentHoldStatus = null;
+        currentToken = null;
         document.querySelectorAll('.table-card').forEach((card) => card.classList.remove('active'));
         document.querySelectorAll('[data-takeaway-hold]').forEach((card) => card.classList.remove('active'));
         document.querySelector('[data-takeaway-start]')?.classList.add('active');
@@ -476,12 +486,13 @@ if (pos) {
         };
         updateOrderHeader();
         setPrintText('[data-print-bill-title]', options.title || 'Pre-payment bill');
+        setPrintText('[data-print-token]', options.formattedToken || (currentToken ? formatToken(currentToken) : '-'));
         setPrintText('[data-print-table]', selectedTable?.name || 'Takeaway');
         setPrintText('[data-print-invoice]', options.invoice || '-');
         setPrintText('[data-print-payment]', options.paymentMethod ? options.paymentMethod.toUpperCase() : '-');
         setPrintText('[data-print-waiter]', waiterInput?.value || 'No waiter');
         setPrintText('[data-print-customer]', customerInput?.value || 'Walk-in Customer');
-        setPrintText('[data-print-date]', new Date().toLocaleString());
+        setPrintText('[data-print-date]', options.orderDate || '-');
         document.querySelector('[data-print-items]').innerHTML = cart.map((item) => `
             <tr>
                 <td>
@@ -623,6 +634,39 @@ if (pos) {
         return json;
     };
 
+    const updateNextToken = (nextToken) => {
+        const nextTokenElement = document.querySelector('[data-next-token]');
+        if (nextTokenElement && nextToken?.display) {
+            nextTokenElement.textContent = nextToken.display;
+        }
+    };
+
+    const refreshNextToken = async () => {
+        if (!pos.dataset.nextTokenUrl) {
+            return;
+        }
+
+        try {
+            const response = await fetch(pos.dataset.nextTokenUrl, {
+                headers: { Accept: 'application/json' },
+                cache: 'no-store',
+            });
+
+            if (response.ok) {
+                updateNextToken(await response.json());
+            }
+        } catch (error) {
+            console.debug('Unable to refresh the advisory next token display.', error);
+        }
+    };
+
+    window.setInterval(refreshNextToken, 15000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            refreshNextToken();
+        }
+    });
+
     // Line item modal elements
     const lineModal = document.getElementById('line-item-modal');
     const lineNameInput = lineModal?.querySelector('[data-line-name]');
@@ -710,6 +754,7 @@ if (pos) {
     const applyHeldOrder = (data) => {
         currentHoldId = data.hold?.id || null;
         currentHoldStatus = data.hold?.status || null;
+        currentToken = data.hold?.token_number || null;
         cart.splice(0, cart.length, ...data.items.map((item) => normalizedCartItem({
             id: item.product_id,
             name: item.product_name,
@@ -871,6 +916,7 @@ if (pos) {
             button.classList.add('active');
             currentHoldId = null;
             currentHoldStatus = null;
+            currentToken = null;
             updateOrderHeader();
             syncCancelHoldAction();
 
@@ -1022,7 +1068,8 @@ if (pos) {
         }
 
         try {
-            await postJson(pos.dataset.holdUrl, payload());
+            const response = await postJson(pos.dataset.holdUrl, payload());
+            updateNextToken(response.next_token);
             window.location.reload();
         } catch (error) {
             showPosToast(error.message || 'Unable to hold this order right now.');
@@ -1041,9 +1088,13 @@ if (pos) {
                 currentHoldId = response.hold_id;
                 currentHoldStatus = 'payment_pending';
             }
+            currentToken = response.token_number || currentToken;
+            updateNextToken(response.next_token);
             renderPrintBill({
                 invoice: response.invoice,
                 paymentMethod: null,
+                formattedToken: response.formatted_token,
+                orderDate: response.order_date,
             });
             window.addEventListener('afterprint', () => window.location.reload(), { once: true });
             window.print();
@@ -1107,10 +1158,14 @@ if (pos) {
             }
 
             const response = await postJson(pos.dataset.payUrl, { ...payload(), payment_method: paymentMethod, received_amount: receivedAmount });
+            currentToken = response.token_number || currentToken;
+            updateNextToken(response.next_token);
             renderPrintBill({
                 title: response.status === 'due' ? 'Due bill' : 'Paid bill',
                 invoice: response.invoice,
                 paymentMethod,
+                formattedToken: response.formatted_token,
+                orderDate: response.order_date,
                 paidAmount: response.paid_amount,
                 receivedAmount: response.received_amount ?? receivedAmount,
                 changeAmount: response.change_amount,
