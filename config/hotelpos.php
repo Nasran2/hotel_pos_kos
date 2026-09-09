@@ -289,7 +289,7 @@ return [
         'customer-due' => 'Customer Due Report',
         'supplier-due' => 'Supplier Due Report',
         'waiters' => 'Waiter Report',
-        'product-sales' => 'Product Sales Report',
+        'product-sales' => 'Product Wise Report',
         'payment-methods' => 'Payment Method Report',
         't-accounts' => 'T Accounts',
         'online-orders' => 'Online Orders Report',

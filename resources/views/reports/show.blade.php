@@ -15,7 +15,7 @@
         't-accounts' => ['Date', 'Reference', 'Description', 'Debit Account', 'Credit Account', 'Debit', 'Credit', 'Download'],
         'waiters' => ['Waiter Name', 'Sales Count', 'Last Incentive', 'Sales Amount', 'Total Incentive'],
         'stock' => ['Barcode', 'Product', 'Last Update', 'Stock Qty', 'Alert Qty'],
-        'product-sales' => ['Product', 'Qty', 'Last Sale', 'Sales', 'Profit'],
+        'product-sales' => ['Product Name', 'Sale Count', 'Total Sale Amount', 'Total Cost', 'Total Profit', 'Action'],
         'payment-methods', 'qr-payments' => ['Method', 'Transactions', 'Last Payment', 'Total', 'Fee'],
         'online-orders' => ['Date', 'Reference', 'Platform', 'Total', 'Paid', 'Balance'],
         'register-closing' => ['Closed At', 'Cashier', 'Opened At', 'Expected', 'Actual', 'Difference'],
@@ -235,6 +235,19 @@
                                     <td class="px-4 py-3">{{ number_format((float) ($row->total ?? 0), 2) }}</td>
                                     <td class="px-4 py-3 text-emerald-700">{{ number_format((float) ($row->paid_amount ?? 0), 2) }}</td>
                                 </tr>
+                            @elseif($report === 'product-sales')
+                                <tr>
+                                    <td class="px-4 py-3 font-bold">{{ $row->reference ?? '-' }}</td>
+                                    <td class="px-4 py-3">{{ number_format((float) ($row->party ?? 0), 0) }}</td>
+                                    <td class="px-4 py-3">{{ number_format((float) ($row->total ?? 0), 2) }}</td>
+                                    <td class="px-4 py-3 text-red-600">{{ number_format((float) ($row->due_amount ?? 0), 2) }}</td>
+                                    <td class="px-4 py-3 text-emerald-700">{{ number_format((float) ($row->profit ?? 0), 2) }}</td>
+                                    <td class="px-4 py-3">
+                                        <button type="button" class="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 hover:bg-blue-100" data-view-bills="{{ $row->invoices }}">
+                                            View
+                                        </button>
+                                    </td>
+                                </tr>
                             @else
                                 <tr>
                                     <td class="px-4 py-3 font-bold">{{ $row->reference ?? '-' }}</td>
@@ -280,4 +293,70 @@
             </div>
         </div>
     </div>
+
+    @if($report === 'product-sales')
+        <div id="view-bills-modal" class="modal fixed inset-0 z-[100] flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300 [&.open]:opacity-100 [&.open]:pointer-events-auto">
+            <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" data-modal-close></div>
+            <div class="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl transition-transform duration-300 scale-95 [&.open]:scale-100">
+                <div class="border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+                    <h3 class="text-lg font-black text-slate-900">Sold Invoices</h3>
+                    <button type="button" class="text-slate-400 hover:text-slate-600" data-modal-close>
+                        <x-lucide name="x" class="size-5" />
+                    </button>
+                </div>
+                <div class="p-5 max-h-[60vh] overflow-y-auto">
+                    <div id="view-bills-content" class="text-sm font-medium text-slate-700 leading-relaxed break-words"></div>
+                </div>
+                <div class="border-t border-slate-100 bg-slate-50 px-5 py-3 text-right">
+                    <button type="button" class="btn-secondary" data-modal-close>Close</button>
+                </div>
+            </div>
+        </div>
+
+        @push('scripts')
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const modal = document.getElementById('view-bills-modal');
+                    const modalInner = modal.querySelector('.scale-95');
+                    const content = document.getElementById('view-bills-content');
+                    
+                    document.querySelectorAll('[data-view-bills]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const billsStr = btn.dataset.viewBills;
+                            if (!billsStr) {
+                                content.innerHTML = '<p class="text-slate-500">No bills found.</p>';
+                            } else {
+                                const bills = billsStr.split('||').map(b => b.split('|'));
+                                let html = '<table class="data-table min-w-full border border-slate-200 rounded-lg overflow-hidden">';
+                                html += '<thead><tr class="bg-slate-50"><th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase">Invoice Number</th><th class="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase">Total Invoice</th><th class="px-4 py-2 text-right text-xs font-bold text-slate-500 uppercase">Action</th></tr></thead><tbody class="divide-y divide-slate-100">';
+                                bills.forEach(b => {
+                                    if(b.length === 3) {
+                                        const [id, invoice, total] = b;
+                                        html += `<tr>
+                                            <td class="px-4 py-2 font-bold text-slate-700">${invoice}</td>
+                                            <td class="px-4 py-2 font-medium text-slate-600">${parseFloat(total).toFixed(2)}</td>
+                                            <td class="px-4 py-2 text-right">
+                                                <a href="/manage/sales/${id}" target="_blank" class="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 hover:bg-blue-100 inline-block">View</a>
+                                            </td>
+                                        </tr>`;
+                                    }
+                                });
+                                html += '</tbody></table>';
+                                content.innerHTML = html;
+                            }
+                            modal.classList.add('open');
+                            modalInner.classList.add('open');
+                        });
+                    });
+
+                    document.querySelectorAll('#view-bills-modal [data-modal-close]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            modal.classList.remove('open');
+                            modalInner.classList.remove('open');
+                        });
+                    });
+                });
+            </script>
+        @endpush
+    @endif
 </x-layouts.app>

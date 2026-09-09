@@ -175,7 +175,7 @@ class ReportController extends Controller
                 ->paginate(25)
                 ->withQueryString(),
             'product-sales' => DB::table('sale_items')->join('sales', 'sales.id', '=', 'sale_items.sale_id')->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
-                ->selectRaw('sale_items.product_name as reference, sum(sale_items.quantity) as party, max(sales.sale_date) as date, sum(sale_items.line_total) as total, sum(sale_items.profit) as profit')
+                ->selectRaw('sale_items.product_name as reference, sum(sale_items.quantity) as party, max(sales.sale_date) as date, sum(sale_items.line_total) as total, sum(sale_items.profit) as profit, sum(sale_items.line_total - sale_items.profit) as due_amount, group_concat(distinct concat(sales.id, "|", sales.invoice_no, "|", sales.total) separator "||") as invoices')
                 ->whereNull('sales.deleted_at')
                 ->whereBetween('sales.sale_date', [$from, $to])
                 ->when($categoryId, fn ($query) => $query->where('products.category_id', $categoryId))

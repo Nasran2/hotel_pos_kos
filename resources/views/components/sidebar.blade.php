@@ -136,6 +136,7 @@
                 $item('Purchase Report', 'chart-bar', 'reports.purchases.view', $reportUrl('purchases'), $currentReport === 'purchases'),
                 $item('Profit & Loss', 'trending-up', 'reports.profit-loss.view', $reportUrl('profit-loss'), $currentReport === 'profit-loss'),
                 $item('Stock Report', 'boxes', 'reports.stock.view', $reportUrl('stock'), $currentReport === 'stock'),
+                $item('Product Wise Report', 'package', 'reports.product-sales.view', $reportUrl('product-sales'), $currentReport === 'product-sales'),
                 $item('Expense Report', 'wallet', 'reports.expenses.view', $reportUrl('expenses'), $currentReport === 'expenses'),
                 $item('Receive Report', 'arrow-down-to-line', 'reports.receive.view', $reportUrl('receive'), $currentReport === 'receive'),
                 $item('Debit Report', 'arrow-up-from-line', 'reports.debit.view', $reportUrl('debit'), $currentReport === 'debit'),
