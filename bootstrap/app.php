@@ -2,11 +2,16 @@
 
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureSystemUnlocked;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Bootstrap\LoadConfiguration;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -21,19 +26,19 @@ $app = Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+        $exceptions->render(function (Throwable $e, Request $request) {
             if ($request->isMethod('GET') || $request->expectsJson()) {
                 return null;
             }
 
-            if ($e instanceof \Illuminate\Validation\ValidationException ||
-                $e instanceof \Illuminate\Auth\AuthenticationException ||
-                $e instanceof \Illuminate\Session\TokenMismatchException ||
-                $e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+            if ($e instanceof ValidationException ||
+                $e instanceof AuthenticationException ||
+                $e instanceof TokenMismatchException ||
+                $e instanceof HttpException) {
                 return null;
             }
 
-            return back()->withInput()->withErrors('System Error: ' . $e->getMessage());
+            return back()->withInput()->withErrors('System Error: '.$e->getMessage());
         });
     })->create();
 

@@ -1,10 +1,14 @@
 <?php
+
+use App\Http\Controllers\BackOffice\ResourceController;
+use Illuminate\Contracts\Http\Kernel;
+
 require __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+$kernel = $app->make(Kernel::class);
 $app->boot();
 
-$controller = app(App\Http\Controllers\BackOffice\ResourceController::class);
+$controller = app(ResourceController::class);
 
 $reflection = new ReflectionClass($controller);
 $recordMethod = $reflection->getMethod('record');
@@ -19,7 +23,7 @@ $config = config('hotelpos.modules.users');
 
 $field = $config['fields']['role_id'];
 $value = $record->role_id ?? null;
-echo "Value before: " . json_encode($value) . "\n";
+echo 'Value before: '.json_encode($value)."\n";
 
 if (($field['type'] ?? null) === 'select' && isset($field['source'])) {
     $sourceRows = $lookups[$field['source']] ?? collect();
@@ -27,5 +31,5 @@ if (($field['type'] ?? null) === 'select' && isset($field['source'])) {
     $value = $match->name ?? $match->number ?? $value;
 }
 
-echo "Value after: " . json_encode($value) . "\n";
-echo "Display: " . (filled($value) ? $value : '-') . "\n";
+echo 'Value after: '.json_encode($value)."\n";
+echo 'Display: '.(filled($value) ? $value : '-')."\n";

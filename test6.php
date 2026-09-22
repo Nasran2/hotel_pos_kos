@@ -1,9 +1,13 @@
 <?php
+
+use App\Http\Controllers\BackOffice\ResourceController;
+use Illuminate\Contracts\Console\Kernel;
+
 require __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
-$controller = app(App\Http\Controllers\BackOffice\ResourceController::class);
+$controller = app(ResourceController::class);
 $reflection = new ReflectionClass($controller);
 $recordMethod = $reflection->getMethod('record');
 $recordMethod->setAccessible(true);
@@ -22,4 +26,4 @@ if (($field['type'] ?? null) === 'select' && isset($field['source'])) {
     $value = $match->name ?? $match->number ?? $value;
 }
 
-echo "Display value: " . (filled($value) ? $value : '-') . "\n";
+echo 'Display value: '.(filled($value) ? $value : '-')."\n";

@@ -1,34 +1,42 @@
 <?php
+
+use App\Models\User;
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+
 $_SERVER['REQUEST_URI'] = '/manage/users/2';
 $_SERVER['REQUEST_METHOD'] = 'PUT';
 
 require __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+$kernel = $app->make(Kernel::class);
 
-$user = App\Models\User::find(1);
+$user = User::find(1);
 
-$request = Illuminate\Http\Request::create('/manage/users/2', 'PUT', [
+$request = Request::create('/manage/users/2', 'PUT', [
     'name' => 'test_save',
     'username' => 'test_save',
     'role_id' => 3,
-    'email' => 'test@test.com'
+    'email' => 'test@test.com',
 ]);
-$request->setUserResolver(function() use ($user) { return $user; });
+$request->setUserResolver(function () use ($user) {
+    return $user;
+});
 
 $app->instance('request', $request);
 
 try {
     $response = $kernel->handle($request);
-    echo "Status: " . $response->getStatusCode() . "\n";
+    echo 'Status: '.$response->getStatusCode()."\n";
     if ($response->isRedirection()) {
-        echo "Redirect: " . $response->headers->get('Location') . "\n";
+        echo 'Redirect: '.$response->headers->get('Location')."\n";
     } else {
         echo $response->getContent();
     }
-} catch (\Exception $e) {
-    echo "Error: " . $e->getMessage() . "\n";
-    if ($e instanceof Illuminate\Validation\ValidationException) {
+} catch (Exception $e) {
+    echo 'Error: '.$e->getMessage()."\n";
+    if ($e instanceof ValidationException) {
         print_r($e->errors());
     }
 }

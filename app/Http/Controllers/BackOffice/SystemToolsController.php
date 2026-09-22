@@ -5,7 +5,6 @@ namespace App\Http\Controllers\BackOffice;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\User;
-use Illuminate\Console\OutputStyle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -287,7 +286,7 @@ class SystemToolsController extends Controller
         }
 
         [$arguments, $options] = $this->artisanParameters($tokens);
-        $output = new BufferedOutput();
+        $output = new BufferedOutput;
 
         try {
             $exitCode = Artisan::call($name, array_merge($arguments, $options), $output);

@@ -1,10 +1,14 @@
 @php
-    $selectedSupplier = $suppliers->firstWhere('id', old('supplier_id'));
+$isEdit = isset($record);
+$selectedSupplier = $suppliers->firstWhere('id', old('supplier_id', $isEdit ? $record->supplier_id : null));
 @endphp
 
-<x-layouts.app heading="Add Purchase" title="Purchases" :show-date-filter="false">
-    <form method="POST" action="{{ route('backoffice.modules.store', $module) }}" class="space-y-5" data-purchase-form>
+<x-layouts.app heading="{{ $isEdit ? 'Edit Purchase' : 'Add Purchase' }}" title="Purchases" :show-date-filter="false">
+    <form method="POST" action="{{ $isEdit ? route('backoffice.modules.update', [$module, $record->id]) : route('backoffice.modules.store', $module) }}" class="space-y-5" data-purchase-form>
         @csrf
+        @if($isEdit)
+        @method('PUT')
+        @endif
 
         <section class="pos-card overflow-hidden p-0">
             <div class="border-b border-slate-100 bg-white px-5 py-4">
@@ -26,7 +30,7 @@
                         </button>
                     </div>
                     <label class="relative block">
-                        <input type="hidden" name="supplier_id" value="{{ old('supplier_id') }}" data-supplier-id>
+                        <input type="hidden" name="supplier_id" value="{{ old('supplier_id', $isEdit ? $record->supplier_id : '') }}" data-supplier-id>
                         <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
                         <input class="form-control w-full pl-10" type="search" value="{{ $selectedSupplier?->name }}" placeholder="Search supplier by name, company, phone..." data-supplier-search autocomplete="off" required>
                         <span class="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-40 hidden max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-2xl" data-supplier-results></span>
@@ -35,12 +39,12 @@
 
                 <label class="grid gap-2 text-sm font-bold text-slate-800">
                     Reference No
-                    <input class="form-control" name="reference_no" value="{{ old('reference_no') }}" placeholder="Bill or supplier invoice number">
+                    <input class="form-control" name="reference_no" value="{{ old('reference_no', $isEdit ? $record->reference_no : '') }}" placeholder="Bill or supplier invoice number">
                 </label>
 
                 <label class="grid gap-2 text-sm font-bold text-slate-800">
                     Purchase Date
-                    <input class="form-control" type="datetime-local" name="purchase_date" value="{{ old('purchase_date', now()->format('Y-m-d\TH:i')) }}" required>
+                    <input class="form-control" type="datetime-local" name="purchase_date" value="{{ old('purchase_date', $isEdit ? \Carbon\Carbon::parse($record->purchase_date)->format('Y-m-d\TH:i') : now()->format('Y-m-d\TH:i')) }}" required>
                 </label>
             </div>
         </section>
@@ -95,21 +99,21 @@
                     <div class="grid content-start gap-4 md:grid-cols-2">
                         <label class="grid gap-2 text-sm font-bold text-slate-800">
                             Payment Method <span class="text-red-500">*</span>
-                            <select class="form-control" name="payment_method" required>
-                                <option value="cash" @selected(old('payment_method') === 'cash')>Cash</option>
-                                <option value="bank" @selected(old('payment_method') === 'bank')>Bank</option>
-                                <option value="card" @selected(old('payment_method') === 'card')>Card</option>
+                            <select class="form-control" name="payment_method" {{ $isEdit ? 'disabled' : 'required' }}>
+                                <option value="cash" @selected(old('payment_method')==='cash' )>Cash</option>
+                                <option value="bank" @selected(old('payment_method')==='bank' )>Bank</option>
+                                <option value="card" @selected(old('payment_method')==='card' )>Card</option>
                             </select>
                         </label>
 
                         <label class="grid gap-2 text-sm font-bold text-slate-800">
                             Payment Amount
-                            <input class="form-control" type="number" step="0.01" min="0" name="paid_amount" value="{{ old('paid_amount', '0.00') }}" data-paid-amount data-clear-zero>
+                            <input class="form-control" type="number" step="0.01" min="0" name="paid_amount" value="{{ old('paid_amount', $isEdit ? $record->paid_amount : '0.00') }}" data-paid-amount data-clear-zero {{ $isEdit ? 'readonly' : '' }}>
                         </label>
 
                         <label class="grid gap-2 text-sm font-bold text-slate-800 md:col-span-2">
                             Additional Notes
-                            <textarea class="form-control min-h-24" name="notes" placeholder="Optional purchase note">{{ old('notes') }}</textarea>
+                            <textarea class="form-control min-h-24" name="notes" placeholder="Optional purchase note">{{ old('notes', $isEdit ? $record->notes : '') }}</textarea>
                         </label>
                     </div>
 
@@ -171,7 +175,7 @@
                         <select class="form-control" name="category_id">
                             <option value="">Select category</option>
                             @foreach($categories as $category)
-                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            <option value="{{ $category->id }}">{{ $category->name }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -284,8 +288,8 @@
     </div>
 
     @push('scripts')
-        <script>
-        document.addEventListener('DOMContentLoaded', function () {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
             const form = document.querySelector('[data-purchase-form]');
             if (!form) return;
 
@@ -316,7 +320,10 @@
                 '"': '&quot;',
                 "'": '&#039;',
             })[char]);
-            const money = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const money = (value) => Number(value || 0).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
             const numberValue = (input) => Math.max(0, Number(input?.value || 0) || 0);
             const attachClearZero = (input) => {
                 input.addEventListener('focus', () => {
@@ -353,14 +360,14 @@
                     supplier.email,
                 ].some((value) => String(value || '').toLowerCase().includes(query))).slice(0, 10);
 
-                supplierResults.innerHTML = matches.length
-                    ? matches.map((supplier) => `
+                supplierResults.innerHTML = matches.length ?
+                    matches.map((supplier) => `
                         <button type="button" class="block w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-blue-50" data-supplier-result-id="${supplier.id}">
                             <span class="block font-black text-slate-900">${escapeHtml(supplierLabel(supplier))}</span>
                             <span class="mt-0.5 block text-xs font-semibold text-slate-500">Phone: ${escapeHtml(supplier.phone || '-')} | Email: ${escapeHtml(supplier.email || '-')}</span>
                         </button>
-                    `).join('')
-                    : '<span class="block px-4 py-5 text-sm font-semibold text-slate-500">No suppliers found.</span>';
+                    `).join('') :
+                    '<span class="block px-4 py-5 text-sm font-semibold text-slate-500">No suppliers found.</span>';
                 supplierResults.classList.remove('hidden');
             };
 
@@ -387,7 +394,10 @@
                     row.querySelector('[data-line-total]').textContent = money(lineTotal);
                 });
 
-                form.querySelector('[data-total-items]').textContent = totalItems.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+                form.querySelector('[data-total-items]').textContent = totalItems.toLocaleString(undefined, {
+                    minimumFractionDigits: 3,
+                    maximumFractionDigits: 3
+                });
                 form.querySelector('[data-net-total]').textContent = money(netTotal);
                 form.querySelector('[data-discount-total]').textContent = `(-) ${money(discountTotal)}`;
                 form.querySelector('[data-grand-total]').textContent = money(grandTotal);
@@ -395,11 +405,11 @@
                 emptyRow.classList.toggle('hidden', rows.length > 0);
             };
 
-            const addProduct = (product) => {
+            const addProduct = (product, initialQty = 1, initialDiscount = 0, initialUnitCost = null, initialSellingPrice = null) => {
                 const existing = body.querySelector(`[data-product-id="${product.id}"]`);
                 if (existing) {
                     const quantityInput = existing.querySelector('[data-quantity]');
-                    quantityInput.value = numberValue(quantityInput) + 1;
+                    quantityInput.value = numberValue(quantityInput) + initialQty;
                     updateTotals();
                     return;
                 }
@@ -416,11 +426,11 @@
                         <p class="font-black text-slate-900">${escapeHtml(product.name)}</p>
                         <p class="mt-0.5 text-xs font-semibold text-slate-500">Barcode: ${escapeHtml(product.barcode || '-')}</p>
                     </td>
-                    <td class="px-3 py-3"><input class="form-control min-h-10 text-right" type="number" step="0.001" min="0.001" name="items[${index}][quantity]" value="1" data-quantity required></td>
-                    <td class="px-3 py-3"><input class="form-control min-h-10 text-right" type="number" step="0.01" min="0" name="items[${index}][unit_cost]" value="${Number(product.cost_price || 0).toFixed(2)}" data-unit-cost data-clear-zero required></td>
-                    <td class="px-3 py-3"><input class="form-control min-h-10 text-right" type="number" step="0.01" min="0" max="100" name="items[${index}][discount_percent]" value="0" data-discount-percent data-clear-zero></td>
+                    <td class="px-3 py-3"><input class="form-control min-h-10 text-right" type="number" step="0.001" min="0.001" name="items[${index}][quantity]" value="${initialQty}" data-quantity required></td>
+                    <td class="px-3 py-3"><input class="form-control min-h-10 text-right" type="number" step="0.01" min="0" name="items[${index}][unit_cost]" value="${Number(initialUnitCost !== null ? initialUnitCost : (product.cost_price || 0)).toFixed(2)}" data-unit-cost data-clear-zero required></td>
+                    <td class="px-3 py-3"><input class="form-control min-h-10 text-right" type="number" step="0.01" min="0" max="100" name="items[${index}][discount_percent]" value="${initialDiscount}" data-discount-percent data-clear-zero></td>
                     <td class="px-3 py-3 text-right font-black text-slate-900" data-line-total>0.00</td>
-                    <td class="px-3 py-3"><input class="form-control min-h-10 text-right" type="number" step="0.01" min="0" name="items[${index}][new_selling_price]" value="${Number(product.selling_price || 0).toFixed(2)}" data-clear-zero></td>
+                    <td class="px-3 py-3"><input class="form-control min-h-10 text-right" type="number" step="0.01" min="0" name="items[${index}][new_selling_price]" value="${Number(initialSellingPrice !== null ? initialSellingPrice : (product.selling_price || 0)).toFixed(2)}" data-clear-zero></td>
                     <td class="px-3 py-3 text-center"><button type="button" class="rounded-lg px-3 py-2 text-lg font-black text-red-600 transition hover:bg-red-50" data-remove-row>&times;</button></td>
                 `;
 
@@ -443,14 +453,14 @@
                 }
 
                 const matches = products.filter((product) => [product.name, product.barcode].some((value) => String(value || '').toLowerCase().includes(query))).slice(0, 10);
-                results.innerHTML = matches.length
-                    ? matches.map((product) => `
+                results.innerHTML = matches.length ?
+                    matches.map((product) => `
                         <button type="button" class="block w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-blue-50" data-result-id="${product.id}">
                             <span class="block font-black text-slate-900">${escapeHtml(product.name)}</span>
                             <span class="mt-0.5 block text-xs font-semibold text-slate-500">Barcode: ${escapeHtml(product.barcode || '-')}</span>
                         </button>
-                    `).join('')
-                    : '<div class="px-4 py-5 text-sm font-semibold text-slate-500">No products found.</div>';
+                    `).join('') :
+                    '<div class="px-4 py-5 text-sm font-semibold text-slate-500">No products found.</div>';
                 results.classList.remove('hidden');
             };
 
@@ -612,7 +622,23 @@
             });
 
             updateTotals();
+
+            let existingItems = @json($purchaseItems ?? []);
+            if (existingItems && existingItems.length > 0) {
+                existingItems.forEach(item => {
+                    const product = products.find(p => String(p.id) === String(item.product_id));
+                    if (product) {
+                        addProduct(
+                            product,
+                            parseFloat(item.quantity),
+                            parseFloat(item.discount_percent || 0),
+                            parseFloat(item.unit_cost),
+                            parseFloat(item.new_selling_price !== null ? item.new_selling_price : product.selling_price)
+                        );
+                    }
+                });
+            }
         });
-        </script>
+    </script>
     @endpush
 </x-layouts.app>

@@ -63,7 +63,7 @@ class ResourceController extends Controller
         if ($request->filled('search')) {
             $query->where(function ($builder) use ($config, $request): void {
                 foreach ($config['search'] ?? [] as $column) {
-                    $builder->orWhere($column, 'like', '%'.$request->string('search')->toString().'%');
+                    $builder->orWhere($column, 'like', '%' . $request->string('search')->toString() . '%');
                 }
             });
         }
@@ -89,7 +89,7 @@ class ResourceController extends Controller
                 default => 'created_at',
             };
 
-            $query->whereBetween($config['table'].'.'.$dateColumn, [$from, $to]);
+            $query->whereBetween($config['table'] . '.' . $dateColumn, [$from, $to]);
         }
 
         foreach (($config['filters'] ?? []) as $column => $source) {
@@ -264,6 +264,26 @@ class ResourceController extends Controller
             ]);
         }
 
+        if ($module === 'purchases') {
+            $record->items = DB::table('purchase_items')
+                ->leftJoin('products', 'products.id', '=', 'purchase_items.product_id')
+                ->where('purchase_id', $id)
+                ->select([
+                    'purchase_items.*',
+                    'products.name as product_name',
+                    'products.barcode'
+                ])
+                ->get();
+
+            return view('backoffice.purchases.show', [
+                'module' => $module,
+                'config' => $config,
+                'record' => $record,
+                'lookups' => $this->lookups($config),
+                'history' => $this->history($module, $id),
+            ]);
+        }
+
         if ($module === 'customers') {
             return view('backoffice.customers.show', [
                 'module' => $module,
@@ -371,6 +391,32 @@ class ResourceController extends Controller
                 'customers' => DB::table('customers')->whereNull('deleted_at')->orderBy('name')->get(),
                 'waiters' => DB::table('waiters')->whereNull('deleted_at')->orderBy('name')->get(),
                 'tables' => DB::table('restaurant_tables')->whereNull('deleted_at')->orderBy('number')->get(),
+                'products' => DB::table('products')
+                    ->whereNull('deleted_at')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'sku', 'barcode', 'cost_price', 'selling_price', 'stock_quantity']),
+            ]);
+        } elseif ($module === 'purchases') {
+            $record = $this->record($config, $id);
+            $purchaseItems = DB::table('purchase_items')
+                ->join('products', 'products.id', '=', 'purchase_items.product_id')
+                ->where('purchase_items.purchase_id', $id)
+                ->select([
+                    'purchase_items.*',
+                    'products.name as product_name',
+                    'products.barcode',
+                    'products.cost_price as current_cost_price',
+                    'products.selling_price as current_selling_price',
+                ])
+                ->get();
+
+            return view('backoffice.purchase-form', [
+                'module' => $module,
+                'config' => $config,
+                'record' => $record,
+                'purchaseItems' => $purchaseItems,
+                'suppliers' => DB::table('suppliers')->whereNull('deleted_at')->orderBy('name')->get(),
+                'categories' => DB::table('categories')->whereNull('deleted_at')->where('is_active', true)->orderBy('name')->get(),
                 'products' => DB::table('products')
                     ->whereNull('deleted_at')
                     ->orderBy('name')
@@ -492,6 +538,98 @@ class ResourceController extends Controller
                     'note' => $request->input('note'),
                     'updated_at' => $now,
                 ]);
+            } elseif ($module === 'purchases') {
+                $purchase = DB::table('purchases')->where('id', $id)->first();
+                $oldItems = DB::table('purchase_items')->where('purchase_id', $id)->get();
+
+                // Revert old stock
+                foreach ($oldItems as $oldItem) {
+                    $product = DB::table('products')->where('id', $oldItem->product_id)->first();
+                    if ($product && $product->maintain_stock) {
+                        DB::table('products')->where('id', $product->id)->decrement('stock_quantity', $oldItem->quantity);
+                    }
+                }
+
+                DB::table('purchase_items')->where('purchase_id', $id)->delete();
+
+                $validatedPurchase = $request->validate([
+                    'supplier_id' => ['required', 'exists:suppliers,id'],
+                    'reference_no' => ['nullable', 'string'],
+                    'purchase_date' => ['required', 'date'],
+                    'paid_amount' => ['nullable', 'numeric', 'min:0'],
+                    'notes' => ['nullable', 'string'],
+                    'items' => ['required', 'array', 'min:1'],
+                    'items.*.product_id' => ['required', 'exists:products,id'],
+                    'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
+                    'items.*.unit_cost' => ['required', 'numeric', 'min:0'],
+                    'items.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+                    'items.*.new_selling_price' => ['nullable', 'numeric', 'min:0'],
+                ]);
+
+                $itemsData = collect($validatedPurchase['items'])->map(function (array $item): array {
+                    $quantity = (float) $item['quantity'];
+                    $unitCost = (float) $item['unit_cost'];
+                    $discountPercent = (float) ($item['discount_percent'] ?? 0);
+                    $gross = $quantity * $unitCost;
+                    $discountAmount = round($gross * $discountPercent / 100, 2);
+                    $lineTotal = max(0, round($gross - $discountAmount, 2));
+
+                    return [
+                        'product_id' => (int) $item['product_id'],
+                        'quantity' => $quantity,
+                        'unit_cost' => $unitCost,
+                        'discount_percent' => $discountPercent,
+                        'discount_amount' => $discountAmount,
+                        'line_total' => $lineTotal,
+                        'new_selling_price' => isset($item['new_selling_price']) && $item['new_selling_price'] !== ''
+                            ? (float) $item['new_selling_price']
+                            : null,
+                    ];
+                });
+
+                $subtotal = round($itemsData->sum(fn(array $item): float => $item['quantity'] * $item['unit_cost']), 2);
+                $discountTotal = round($itemsData->sum('discount_amount'), 2);
+                $grandTotal = round($itemsData->sum('line_total'), 2);
+                $paidAmount = min((float) ($validatedPurchase['paid_amount'] ?? $purchase->paid_amount), $grandTotal);
+                $dueAmount = max(0, $grandTotal - $paidAmount);
+                $now = now();
+
+                DB::table('purchases')->where('id', $id)->update([
+                    'supplier_id' => $validatedPurchase['supplier_id'],
+                    'reference_no' => $validatedPurchase['reference_no'] ?? null,
+                    'purchase_date' => $validatedPurchase['purchase_date'],
+                    'subtotal' => $subtotal,
+                    'discount_total' => $discountTotal,
+                    'grand_total' => $grandTotal,
+                    'paid_amount' => $paidAmount,
+                    'due_amount' => $dueAmount,
+                    'notes' => $validatedPurchase['notes'] ?? null,
+                    'updated_at' => $now,
+                ]);
+
+                foreach ($itemsData as $item) {
+                    DB::table('purchase_items')->insert([
+                        'purchase_id' => $id,
+                        'product_id' => $item['product_id'],
+                        'quantity' => $item['quantity'],
+                        'unit_cost' => $item['unit_cost'],
+                        'discount_type' => $item['discount_percent'] > 0 ? 'percentage' : null,
+                        'discount_amount' => $item['discount_amount'],
+                        'tax_amount' => 0,
+                        'line_total' => $item['line_total'],
+                        'updates_selling_price' => $item['new_selling_price'] !== null,
+                        'new_selling_price' => $item['new_selling_price'],
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+
+                    DB::table('products')->where('id', $item['product_id'])->increment('stock_quantity', $item['quantity']);
+                    DB::table('products')->where('id', $item['product_id'])->update([
+                        'cost_price' => $item['unit_cost'],
+                        ...($item['new_selling_price'] !== null ? ['selling_price' => $item['new_selling_price']] : []),
+                        'updated_at' => $now,
+                    ]);
+                }
             } else {
                 DB::table($config['table'])->where('id', $id)->update([...$payload, 'updated_at' => now()]);
                 if ($module === 'expenses') {
@@ -656,7 +794,7 @@ class ResourceController extends Controller
                     'amount' => $amount,
                     'payment_method' => $validated['payment_method'],
                     'expense_date' => $validated['paid_at'] ?? now(),
-                    'note' => $validated['note'] ?: 'Waiter incentive payment for '.$waiter->name,
+                    'note' => $validated['note'] ?: 'Waiter incentive payment for ' . $waiter->name,
                     'attachment_path' => null,
                     'source_type' => 'waiter_incentive_payment',
                     'source_id' => $id,
@@ -734,7 +872,7 @@ class ResourceController extends Controller
                     'amount' => $deductionAmount,
                     'payment_method' => $method,
                     'expense_date' => $paidAt,
-                    'note' => trim('Sale deduction for invoice '.($sale->invoice_no ?? $id).' ('.$channelLabel.'). '.($validated['note'] ?? '')),
+                    'note' => trim('Sale deduction for invoice ' . ($sale->invoice_no ?? $id) . ' (' . $channelLabel . '). ' . ($validated['note'] ?? '')),
                     'source_type' => 'sale_deduction',
                     'source_id' => $deductionId,
                 ]));
@@ -804,7 +942,7 @@ class ResourceController extends Controller
             ];
         });
 
-        $subtotal = round($items->sum(fn (array $item): float => $item['quantity'] * $item['unit_cost']), 2);
+        $subtotal = round($items->sum(fn(array $item): float => $item['quantity'] * $item['unit_cost']), 2);
         $discountTotal = round($items->sum('discount_amount'), 2);
         $grandTotal = round($items->sum('line_total'), 2);
         $paidAmount = min((float) ($validated['paid_amount'] ?? 0), $grandTotal);
@@ -1037,7 +1175,7 @@ class ResourceController extends Controller
      */
     private function receiptSettings(): array
     {
-        $settings = DB::table('settings')->get()->mapWithKeys(fn ($setting) => [$setting->group.'_'.$setting->key => $setting->value])->all();
+        $settings = DB::table('settings')->get()->mapWithKeys(fn($setting) => [$setting->group . '_' . $setting->key => $setting->value])->all();
 
         return [
             'business_name' => $settings['business_name'] ?? 'Hotel POS',
@@ -1166,7 +1304,7 @@ class ResourceController extends Controller
                     'balance_after' => $newStock,
                     'source_type' => 'sale',
                     'source_id' => $id,
-                    'note' => 'Restocked after deleting sale '.($sale->invoice_no ?? "#{$id}"),
+                    'note' => 'Restocked after deleting sale ' . ($sale->invoice_no ?? "#{$id}"),
                 ]));
             }
         }
@@ -1223,7 +1361,7 @@ class ResourceController extends Controller
 
         $latestActivity = DB::table('activity_logs')
             ->where('module', $module)
-            ->where('properties', 'like', '%"id":'.$id.'%')
+            ->where('properties', 'like', '%"id":' . $id . '%')
             ->latest('created_at')
             ->first();
 
@@ -1233,7 +1371,7 @@ class ResourceController extends Controller
 
         return [
             'Create' => (string) $latestActivity->description,
-            'Update' => 'Last activity at '.(string) $latestActivity->created_at,
+            'Update' => 'Last activity at ' . (string) $latestActivity->created_at,
             'Delete' => 'No delete record linked.',
             'Payments' => 'No payment data linked.',
             'Reports' => 'No report data linked.',
@@ -1455,36 +1593,36 @@ class ResourceController extends Controller
 
         $activityCount = (int) DB::table('activity_logs')
             ->where('module', 'sales')
-            ->where('properties', 'like', '%"sale_id":'.$saleId.'%')
+            ->where('properties', 'like', '%"sale_id":' . $saleId . '%')
             ->count();
         $lastActivity = DB::table('activity_logs')
             ->where('module', 'sales')
-            ->where('properties', 'like', '%"sale_id":'.$saleId.'%')
+            ->where('properties', 'like', '%"sale_id":' . $saleId . '%')
             ->latest('created_at')
             ->first();
 
         return [
             'Sale items' => $itemCount > 0
-                ? $itemCount.' item rows, qty '.number_format($itemQuantity, 3).' (Rs. '.number_format($itemTotal, 2).')'
+                ? $itemCount . ' item rows, qty ' . number_format($itemQuantity, 3) . ' (Rs. ' . number_format($itemTotal, 2) . ')'
                 : 'No sale items linked.',
             'Payments' => $paymentCount > 0
-                ? $paymentCount.' payment(s), Rs. '.number_format($paymentTotal, 2).($lastPaymentAt ? ' | Last: '.$lastPaymentAt : '')
+                ? $paymentCount . ' payment(s), Rs. ' . number_format($paymentTotal, 2) . ($lastPaymentAt ? ' | Last: ' . $lastPaymentAt : '')
                 : 'No payments linked.',
             'Deductions' => $deductionCount > 0
-                ? $deductionCount.' deduction(s), Rs. '.number_format($deductionTotal, 2).($lastDeductionAt ? ' | Last: '.$lastDeductionAt : '')
+                ? $deductionCount . ' deduction(s), Rs. ' . number_format($deductionTotal, 2) . ($lastDeductionAt ? ' | Last: ' . $lastDeductionAt : '')
                 : 'No deductions linked.',
             'Expense records' => $expenseCount > 0
-                ? $expenseCount.' expense record(s), Rs. '.number_format($expenseTotal, 2)
+                ? $expenseCount . ' expense record(s), Rs. ' . number_format($expenseTotal, 2)
                 : 'No deduction expenses linked.',
             'Stock effect' => $stockMoveCount > 0
-                ? $stockMoveCount.' stock movement(s), qty '.number_format($stockMovedQty, 3)
+                ? $stockMoveCount . ' stock movement(s), qty ' . number_format($stockMovedQty, 3)
                 : 'No stock movements linked.',
-            'Profit records' => 'Profit for this sale: Rs. '.number_format($profitAmount, 2),
+            'Profit records' => 'Profit for this sale: Rs. ' . number_format($profitAmount, 2),
             'Waiter incentive' => $incentive
-                ? (($incentive->waiter_name ?? 'Waiter').' earned Rs. '.number_format((float) $incentive->amount, 2).' ('.number_format((float) $incentive->percentage, 2).'%)')
+                ? (($incentive->waiter_name ?? 'Waiter') . ' earned Rs. ' . number_format((float) $incentive->amount, 2) . ' (' . number_format((float) $incentive->percentage, 2) . '%)')
                 : 'No waiter incentive linked.',
             'Activity log' => $activityCount > 0
-                ? $activityCount.' activity log(s) | Last: '.($lastActivity->description ?? 'Updated')
+                ? $activityCount . ' activity log(s) | Last: ' . ($lastActivity->description ?? 'Updated')
                 : 'No activity logs linked.',
         ];
     }
@@ -1494,7 +1632,7 @@ class ResourceController extends Controller
         return match (strtolower($channel)) {
             'online' => 'Online sale',
             'pos' => 'Normal POS sale',
-            default => str($channel)->replace('_', ' ')->headline().' sale',
+            default => str($channel)->replace('_', ' ')->headline() . ' sale',
         };
     }
 
@@ -1523,7 +1661,7 @@ class ResourceController extends Controller
 
         return DB::table('expense_categories')->insertGetId([
             'name' => $name,
-            'description' => $name.' expenses',
+            'description' => $name . ' expenses',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),

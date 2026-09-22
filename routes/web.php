@@ -13,21 +13,28 @@ use App\Http\Controllers\BackOffice\SystemToolsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/fix-db', function () {
-    \DB::statement('ALTER TABLE order_tokens ENGINE = InnoDB;');
-    \DB::statement('ALTER TABLE daily_token_counters ENGINE = InnoDB;');
+    DB::statement('ALTER TABLE order_tokens ENGINE = InnoDB;');
+    DB::statement('ALTER TABLE daily_token_counters ENGINE = InnoDB;');
 
     $tables = ['hold_orders', 'sales', 'online_orders'];
     $dropped = [];
 
     foreach ($tables as $tableName) {
-        $columns = \Schema::getColumnListing($tableName);
+        $columns = Schema::getColumnListing($tableName);
         if (in_array('order_token_id', $columns)) {
-            try { \DB::statement("ALTER TABLE {$tableName} DROP FOREIGN KEY {$tableName}_order_token_id_foreign"); } catch(\Exception $e) {}
-            try { \DB::statement("ALTER TABLE {$tableName} DROP COLUMN order_token_id"); } catch(\Exception $e) {}
+            try {
+                DB::statement("ALTER TABLE {$tableName} DROP FOREIGN KEY {$tableName}_order_token_id_foreign");
+            } catch (Exception $e) {
+            }
+            try {
+                DB::statement("ALTER TABLE {$tableName} DROP COLUMN order_token_id");
+            } catch (Exception $e) {
+            }
             $dropped[] = $tableName;
         }
     }
-    return "Database fixed! Engines changed to InnoDB and duplicate columns dropped from: " . implode(', ', $dropped) . ".<br><br>You can now go back to your terminal and run <b>php artisan migrate</b>.";
+
+    return 'Database fixed! Engines changed to InnoDB and duplicate columns dropped from: '.implode(', ', $dropped).'.<br><br>You can now go back to your terminal and run <b>php artisan migrate</b>.';
 });
 
 Route::middleware('guest')->group(function (): void {
