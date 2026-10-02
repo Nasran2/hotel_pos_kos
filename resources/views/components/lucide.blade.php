@@ -2,6 +2,7 @@
 
 @php
     $paths = [
+        'cooking-pot' => '<path d="M4 10h16v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4Z"/><path d="M2 10h20M2 13h2M20 13h2M8 7V4M12 7V2M16 7V4"/>',
         'armchair' => '<path d="M6 18v2"/><path d="M18 18v2"/><path d="M5 13V8a4 4 0 0 1 8 0v5"/><path d="M19 13V8a4 4 0 0 0-8 0v5"/><path d="M4 13h16v5H4z"/>',
         'arrow-down-to-line' => '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
         'arrow-up-from-line' => '<path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/>',

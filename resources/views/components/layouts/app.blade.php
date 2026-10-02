@@ -9,22 +9,30 @@
     <title>{{ $title ?? 'Hotel POS' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+<body class="app-shell {{ request()->routeIs('pos.index') ? 'pos-screen' : '' }} min-h-screen bg-slate-50 text-slate-900 antialiased">
     <div class="min-h-screen lg:flex">
         <x-sidebar :drawer-only="$posFullscreen" />
 
         <div class="min-w-0 flex-1">
-            <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+            <header class="app-topbar sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
                 <div class="flex h-18 items-center justify-between gap-3 px-4 sm:px-6">
                     <button class="topbar-menu-button {{ $posFullscreen ? '' : 'lg:hidden' }}" data-sidebar-open aria-label="Open sidebar">
                         <x-lucide name="menu" class="size-5" />
                     </button>
                     <div class="min-w-0">
-                        <p class="text-xs font-bold uppercase tracking-[0.16em] text-blue-500">Daily operations</p>
+                        <p class="text-xs font-bold uppercase tracking-[0.16em] text-blue-500">Restaurant workspace</p>
                         <h1 class="truncate text-xl font-black text-slate-800">{{ $heading ?? 'Hotel POS' }}</h1>
                     </div>
                     <div class="flex items-center gap-2">
-                        <div class="hidden rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500 sm:block">Search modules, reports, sales</div>
+                        <span class="hidden text-xs font-semibold text-slate-500 xl:block">{{ now()->format('D, d M Y') }}</span>
+                        @can('pos.access')
+                        @if(request()->routeIs('pos.index'))
+                        <button type="button" data-new-order aria-label="New order" class="btn-primary !min-h-10 !px-4 !py-2"><x-lucide name="circle-plus" class="size-4" /><span class="hidden sm:inline">New order</span></button>
+                        @else
+                        <a href="{{ route('pos.index') }}" aria-label="New order" class="btn-primary !min-h-10 !px-4 !py-2"><x-lucide name="circle-plus" class="size-4" /><span class="hidden sm:inline">New order</span></a>
+                        @endif
+                        @endcan
+                        <span class="hidden size-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800 sm:flex" title="{{ auth()->user()?->name }}">{{ mb_substr(auth()->user()?->name ?? 'U', 0, 1) }}</span>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button class="btn-secondary !min-h-10">Logout</button>
@@ -34,7 +42,7 @@
             </header>
 
             @if($showDateFilter)
-                <div class="sticky top-[4.5rem] z-30 border-b border-slate-200/80 bg-[#f6f8fc]/95 px-4 py-3 backdrop-blur sm:px-6">
+                <div class="app-filter sticky top-[4.5rem] z-30 border-b border-slate-200/80 bg-[#f6f8fc]/95 px-4 py-3 backdrop-blur sm:px-6">
                     <x-date-filter />
                 </div>
             @endif
@@ -78,7 +86,7 @@
                 </script>
             @endif
 
-            <main class="{{ $posFullscreen ? 'p-3 sm:p-4' : 'p-4 sm:p-6' }}">
+            <main class="app-main {{ $posFullscreen ? 'p-3 sm:p-4' : 'p-4 sm:p-6' }}">
                 {{ $slot }}
             </main>
         </div>
@@ -87,7 +95,7 @@
     @can('pos.access')
         @unless($posFullscreen || request()->routeIs('pos.index'))
             <a href="{{ route('pos.index') }}"
-                class="fixed bottom-5 right-5 z-50 grid size-14 place-items-center rounded-full bg-violet-600 text-white shadow-2xl shadow-violet-600/35 ring-4 ring-white transition duration-200 hover:-translate-y-0.5 hover:bg-violet-700 focus:outline-none focus:ring-4 focus:ring-violet-200 sm:bottom-6 sm:right-6"
+                class="pos-launcher fixed bottom-5 right-5 z-50 grid size-14 place-items-center rounded-full bg-violet-600 text-white shadow-2xl shadow-violet-600/35 ring-4 ring-white transition duration-200 hover:-translate-y-0.5 hover:bg-violet-700 focus:outline-none focus:ring-4 focus:ring-violet-200 sm:bottom-6 sm:right-6"
                 aria-label="Open POS screen"
                 title="Open POS">
                 <x-lucide name="wallet-cards" class="size-6" />

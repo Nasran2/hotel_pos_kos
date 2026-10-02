@@ -31,6 +31,6 @@ it('renders seeded dashboard and pos screens for the super admin', function () {
     $admin = User::query()->where('username', 'admin')->firstOrFail();
 
     $this->actingAs($admin)->get(route('dashboard'))->assertSuccessful()->assertSee('Total Sales');
-    $this->actingAs($admin)->get(route('pos.index'))->assertSuccessful()->assertSee('Table & Waiter Assignment', false);
+    $this->actingAs($admin)->get(route('pos.index'))->assertSuccessful()->assertSee('Dining room', false);
     $this->actingAs($admin)->get(route('reports.show', 'sales'))->assertSuccessful()->assertSee('Sales Report');
 });

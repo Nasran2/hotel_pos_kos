@@ -28,7 +28,7 @@ class LoginController extends Controller
             $request->session()->regenerate();
             ActivityLog::record('login', 'auth', 'User logged in.');
 
-            return redirect()->intended(route('dashboard'));
+            return redirect()->intended(route($request->user()->can('dashboard.view') ? 'dashboard' : ($request->user()->can('kitchen.view') ? 'kitchen.index' : 'pos.index')));
         }
 
         return back()

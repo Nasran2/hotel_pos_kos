@@ -6,6 +6,7 @@
             'invoice' => 'receipt',
             'pos' => 'monitor',
             'barcode' => 'scan-barcode',
+            'kitchen' => 'cooking-pot',
         ];
 
         $groups = [
@@ -174,6 +175,32 @@
             </div>
         </section>
 
+        @if($sectionKey === 'kitchen')
+            <section class="pos-card space-y-5">
+                <div class="flex items-center gap-3">
+                    <x-lucide name="key-round" class="size-5 text-blue-600" />
+                    <h3 class="text-lg font-bold text-slate-900">Kitchen display access</h3>
+                </div>
+                <p class="text-sm text-slate-500">Open <a href="{{ route('kod.index') }}" target="_blank" rel="noopener" class="font-bold text-blue-600 hover:underline">{{ route('kod.index') }}</a> on the kitchen screen. It uses a four-digit PIN and runs in fullscreen without the POS menus. The initial PIN is 0000.</p>
+                <p class="text-sm text-slate-500">Changing the PIN locks all kitchen displays. Enter the new PIN on each screen to continue.</p>
+                @can('settings.update')
+                    <form method="POST" action="{{ route('settings.kitchen-pin') }}" class="grid max-w-xl gap-4">
+                        @csrf
+                        @method('PUT')
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <label class="grid gap-2 text-sm font-semibold text-slate-700">New four-digit PIN
+                                <input class="form-input" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required>
+                            </label>
+                            <label class="grid gap-2 text-sm font-semibold text-slate-700">Confirm PIN
+                                <input class="form-input" name="pin_confirmation" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required>
+                            </label>
+                        </div>
+                        @error('pin')<p class="text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                        <button class="btn-primary justify-self-start">Save kitchen PIN</button>
+                    </form>
+                @endcan
+            </section>
+        @else
         <form method="POST" enctype="multipart/form-data" action="{{ route('settings.update', ['section' => $sectionKey]) }}" class="space-y-4">
             @csrf
             @method('PUT')
@@ -275,6 +302,7 @@
                 </div>
             @endcan
         </form>
+        @endif
     </div>
 
     @push('scripts')

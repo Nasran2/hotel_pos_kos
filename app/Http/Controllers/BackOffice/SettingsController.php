@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\BackOffice;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateKitchenPinRequest;
 use App\Models\ActivityLog;
+use App\Services\KitchenDisplayAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +25,7 @@ class SettingsController extends Controller
             'sectionKey' => $sectionKey,
             'section' => $sections[$sectionKey],
             'sections' => $sections,
-            'settings' => DB::table('settings')->get()->keyBy(fn ($item) => $item->group.'.'.$item->key),
+            'settings' => DB::table('settings')->where('group', '!=', 'kitchen')->get()->keyBy(fn ($item) => $item->group.'.'.$item->key),
             'uploadMaxMegabytes' => $this->uploadMaxMegabytes(),
         ]);
     }
@@ -55,7 +57,7 @@ class SettingsController extends Controller
         );
 
         foreach ($request->input('settings', []) as $group => $values) {
-            if (! is_array($values)) {
+            if ($group === 'kitchen' || ! is_array($values)) {
                 continue;
             }
 
@@ -65,7 +67,7 @@ class SettingsController extends Controller
         }
 
         foreach ($request->file('files', []) as $group => $files) {
-            if (! is_array($files)) {
+            if ($group === 'kitchen' || ! is_array($files)) {
                 continue;
             }
 
@@ -81,6 +83,15 @@ class SettingsController extends Controller
         ActivityLog::record('update', 'settings', 'Settings updated.');
 
         return redirect()->route('settings.edit', ['section' => $sectionKey])->with('status', 'Settings updated.');
+    }
+
+    public function updateKitchenPin(UpdateKitchenPinRequest $request, KitchenDisplayAccess $access): RedirectResponse
+    {
+        $access->updatePin($request->validated('pin'));
+        ActivityLog::record('update', 'settings', 'Kitchen display PIN changed.');
+
+        return redirect()->route('settings.edit', ['section' => 'kitchen'])
+            ->with('status', 'Kitchen PIN updated. Kitchen displays must enter the new PIN.');
     }
 
     /**
@@ -108,6 +119,10 @@ class SettingsController extends Controller
             'barcode' => [
                 'label' => 'Barcode Settings',
                 'groups' => ['barcode'],
+            ],
+            'kitchen' => [
+                'label' => 'Kitchen Display',
+                'groups' => [],
             ],
         ];
     }

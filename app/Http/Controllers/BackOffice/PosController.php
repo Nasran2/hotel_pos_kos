@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\BackOffice;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SendKitchenOrderRequest;
 use App\Models\ActivityLog;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\OrderToken;
 use App\Models\User;
 use App\Services\DailyTokenService;
+use App\Services\KitchenOrderService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -107,6 +109,25 @@ class PosController extends Controller
         });
     }
 
+    public function sendToKitchen(SendKitchenOrderRequest $request, KitchenOrderService $kitchenOrders): JsonResponse
+    {
+        $this->authorize('pos.send_kitchen');
+        $payload = $this->cartPayload($request);
+
+        return DB::transaction(function () use ($payload, $kitchenOrders): JsonResponse {
+            $orderToken = $this->resolveOrderToken($payload);
+            $holdId = $this->storePendingOrder($payload, $orderToken, 'hold', 'hold');
+            $kitchenOrderId = $kitchenOrders->send($orderToken, $payload);
+
+            return response()->json([
+                'message' => 'Order sent to kitchen.',
+                'hold_id' => $holdId,
+                'kitchen_order_id' => $kitchenOrderId,
+                ...$this->tokenResponse($orderToken),
+            ]);
+        });
+    }
+
     public function resume(int $table): JsonResponse
     {
         $this->authorize('pos.resume_hold_order');
@@ -145,7 +166,7 @@ class PosController extends Controller
         });
     }
 
-    public function cancelHold(int $hold): JsonResponse
+    public function cancelHold(int $hold, KitchenOrderService $kitchenOrders): JsonResponse
     {
         $this->authorize('pos.hold_order');
 
@@ -155,7 +176,9 @@ class PosController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
 
-        DB::transaction(function () use ($holdOrder): void {
+        DB::transaction(function () use ($holdOrder, $kitchenOrders): void {
+            $holdOrder = DB::table('hold_orders')->where('id', $holdOrder->id)->whereIn('status', ['hold', 'payment_pending'])->whereNull('deleted_at')->lockForUpdate()->firstOrFail();
+            $kitchenOrders->cancelForToken($holdOrder->order_token_id);
             DB::table('hold_orders')
                 ->where('id', $holdOrder->id)
                 ->update([

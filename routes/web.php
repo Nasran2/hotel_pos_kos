@@ -4,13 +4,25 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\BackOffice\AccountController;
 use App\Http\Controllers\BackOffice\ActivityLogController;
 use App\Http\Controllers\BackOffice\DashboardController;
+use App\Http\Controllers\BackOffice\KitchenController;
 use App\Http\Controllers\BackOffice\OnlineOrderController;
 use App\Http\Controllers\BackOffice\PosController;
 use App\Http\Controllers\BackOffice\ReportController;
 use App\Http\Controllers\BackOffice\ResourceController;
 use App\Http\Controllers\BackOffice\SettingsController;
 use App\Http\Controllers\BackOffice\SystemToolsController;
+use App\Http\Controllers\KitchenDisplayController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/kod', [KitchenDisplayController::class, 'index'])->name('kod.index')->block();
+Route::get('/kitchen', [KitchenController::class, 'index'])->name('kitchen.index');
+Route::post('/kod/unlock', [KitchenDisplayController::class, 'unlock'])->middleware('throttle:kod-pin')->name('kod.unlock')->block();
+Route::post('/kod/lock', [KitchenDisplayController::class, 'lock'])->name('kod.lock')->block();
+Route::middleware('kitchen.pin')->prefix('kod')->name('kod.')->group(function (): void {
+    Route::delete('/orders/{order}', [KitchenDisplayController::class, 'delete'])->whereNumber('order')->name('delete')->block();
+    Route::get('/orders', [KitchenDisplayController::class, 'feed'])->name('feed')->block();
+    Route::post('/orders/{order}/status', [KitchenDisplayController::class, 'update'])->whereNumber('order')->name('status')->block();
+});
 
 Route::get('/fix-db', function () {
     DB::statement('ALTER TABLE order_tokens ENGINE = InnoDB;');
@@ -55,6 +67,13 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('system.lock')->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->middleware('permission:dashboard.view')->name('dashboard');
 
+        Route::delete('/kitchen/orders/{order}', [KitchenController::class, 'delete'])->middleware('permission:kitchen.update')->whereNumber('order')->name('kitchen.delete')->block();
+        Route::post('/pos/kitchen/{order}/stop', [KitchenController::class, 'requestStop'])->middleware('permission:pos.send_kitchen')->whereNumber('order')->name('pos.kitchen.stop')->block();
+        Route::get('/kitchen/orders', [KitchenController::class, 'feed'])->name('kitchen.feed')->block();
+        Route::post('/kitchen/orders/{order}/status', [KitchenController::class, 'update'])->middleware('permission:kitchen.update')->whereNumber('order')->name('kitchen.status')->block();
+        Route::post('/pos/kitchen/{order}/served', [KitchenController::class, 'update'])->middleware('permission:pos.send_kitchen')->whereNumber('order')->name('pos.kitchen.served')->block();
+        Route::post('/pos/kitchen/send', [PosController::class, 'sendToKitchen'])->middleware('permission:pos.send_kitchen')->name('pos.kitchen.send')->block();
+
         Route::get('/pos', [PosController::class, 'index'])->middleware('permission:pos.access')->name('pos.index');
         Route::get('/pos/next-token', [PosController::class, 'nextToken'])->middleware('permission:pos.access')->name('pos.next-token');
         Route::post('/pos/register/open', [PosController::class, 'openRegister'])->middleware('permission:pos.open_register')->name('pos.register.open');
@@ -84,6 +103,7 @@ Route::middleware('auth')->group(function (): void {
 
         Route::get('/settings', [SettingsController::class, 'edit'])->middleware('permission:settings.view')->name('settings.edit');
         Route::put('/settings', [SettingsController::class, 'update'])->middleware('permission:settings.update')->name('settings.update');
+        Route::put('/settings/kitchen-pin', [SettingsController::class, 'updateKitchenPin'])->middleware('permission:settings.update')->name('settings.kitchen-pin');
         Route::get('/activity-logs', ActivityLogController::class)->middleware('permission:activity_logs.view')->name('activity-logs.index');
         Route::get('/reports/{report}/export/{format}', [ReportController::class, 'export'])->whereIn('format', ['excel', 'pdf'])->name('reports.export');
         Route::get('/reports/{report}', [ReportController::class, 'show'])->name('reports.show');

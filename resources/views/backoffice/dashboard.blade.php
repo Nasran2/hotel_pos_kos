@@ -4,8 +4,8 @@
             ['key' => 'total_sales', 'label' => 'Total Sales', 'icon' => 'wallet', 'tone' => 'blue', 'hint' => 'Range revenue'],
             ['key' => 'profit_loss', 'label' => 'Profit / Loss', 'icon' => 'trending-up', 'tone' => ($values['profit_loss'] ?? 0) < 0 ? 'red' : 'green', 'hint' => ($values['profit_loss'] ?? 0) < 0 ? 'Needs review' : 'Net result'],
             ['key' => 'total_expenses', 'label' => 'Total Expenses', 'icon' => 'badge-dollar-sign', 'tone' => 'orange', 'hint' => 'Recorded spend'],
-            ['key' => 'total_takeaway_orders', 'label' => 'Total takeaway orders', 'icon' => 'package', 'tone' => 'blue', 'isCurrency' => false, 'hint' => 'Handled'],
-            ['key' => 'total_orders', 'label' => 'Orders', 'icon' => 'receipt', 'tone' => 'blue', 'isCurrency' => false, 'hint' => 'Completed bills'],
+            ['key' => 'total_orders', 'label' => 'Orders', 'icon' => 'package', 'tone' => 'blue', 'isCurrency' => false, 'hint' => 'Completed bills'],
+            ['key' => 'total_takeaway_orders', 'label' => 'Takeaway orders', 'icon' => 'receipt', 'tone' => 'blue', 'isCurrency' => false, 'hint' => 'Takeaway service'],
             ['key' => 'online_orders', 'label' => 'Online Orders', 'icon' => 'smartphone', 'tone' => 'indigo', 'isCurrency' => false, 'hint' => 'Platform orders'],
             ['key' => 'online_sales', 'label' => 'Online Sales', 'icon' => 'globe', 'tone' => 'cyan', 'hint' => 'Gross online value'],
             ['key' => 'online_cod_pending', 'label' => 'Online COD Pending', 'icon' => 'hourglass', 'tone' => 'orange', 'hint' => 'Awaiting collection'],
@@ -20,10 +20,14 @@
         $isNegativeGrowth = $balanceGrowth < 0;
     @endphp
 
-    <div class="space-y-5">
-        <section class="grid grid-cols-1 gap-5 sm:grid-cols-2 2xl:grid-cols-4">
+    <div class="page-intro">
+        <div><p class="eyebrow">YOUR RESTAURANT AT A GLANCE</p><h2>Every detail. One place.</h2><p>Sales, service, and the numbers that keep your business moving.</p></div>
+        @can('kitchen.view')<a href="{{ route('kod.index') }}" class="service-badge"><x-lucide name="cooking-pot" class="size-5" /> Kitchen display <span>↗</span></a>@endcan
+    </div>
+    <div class="space-y-6 dashboard-content">
+        <section class="dashboard-metrics grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             @foreach($summaryCards as $card)
-                <article class="summary-card summary-card-{{ $card['tone'] }}">
+                <article class="summary-card {{ $loop->index > 3 ? 'summary-card-compact' : '' }} summary-card-{{ $card['tone'] }}">
                     <div class="flex h-full items-center justify-between gap-4">
                         <div class="min-w-0">
                             <p class="summary-card-title">{{ $card['label'] }}</p>
@@ -48,8 +52,8 @@
             @endforeach
         </section>
 
-        <section class="grid items-start gap-5 xl:grid-cols-[1.75fr_1fr]">
-            <article class="pos-card">
+        <section class="grid items-start gap-5 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
+            <article class="pos-card min-w-0">
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-black text-slate-900">Revenue Overview</h2>
@@ -58,7 +62,7 @@
                     <a href="{{ route('reports.show', 'sales') }}" class="text-sm font-bold text-slate-400 transition hover:text-blue-600">See All</a>
                 </div>
 
-                <div class="mt-5 grid gap-5 xl:grid-cols-[15rem_1fr]">
+                <div class="mt-5 grid gap-5 2xl:grid-cols-[15rem_minmax(0,1fr)]">
                     <div class="grid content-start gap-4 rounded-lg border border-slate-100 bg-slate-50 p-4">
                         @foreach($weekProgress as $label => $value)
                             <div>
@@ -73,13 +77,13 @@
                         @endforeach
                     </div>
 
-                    <div class="h-72 rounded-lg border border-slate-100 bg-slate-50 p-4">
+                    <div class="h-72 min-w-0 rounded-lg border border-slate-100 bg-slate-50 p-4">
                         <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
             </article>
 
-            <article class="pos-card space-y-5">
+            <article class="pos-card min-w-0 space-y-5">
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-sm font-bold text-slate-500">Balance</p>
@@ -119,8 +123,8 @@
             </article>
         </section>
 
-        <section class="grid items-start gap-5 xl:grid-cols-[1.7fr_1fr]">
-            <article class="pos-card">
+        <section class="grid items-start gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+            <article class="pos-card min-w-0">
                 <div class="mb-4 flex items-center justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-black text-slate-900">Waiter Performance</h2>
@@ -167,7 +171,7 @@
                 </div>
             </article>
 
-            <article class="pos-card">
+            <article class="pos-card min-w-0">
                 <div class="mb-4 flex items-center justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-black text-slate-900">Activity Log</h2>
@@ -208,8 +212,8 @@
                         data: {
                             labels: @json($chartLabels),
                             datasets: [
-                                { label: 'Sales', data: @json($salesSeries), borderRadius: 10, backgroundColor: '#3b82f6' },
-                                { label: 'Profit', data: @json($profitSeries), borderRadius: 10, backgroundColor: '#f59e0b' },
+                                { label: 'Sales', data: @json($salesSeries), borderRadius: 10, backgroundColor: '#2563EB' },
+                                { label: 'Profit', data: @json($profitSeries), borderRadius: 10, backgroundColor: '#D4A843' },
                             ],
                         },
                         options: {
@@ -236,7 +240,7 @@
                                     Number(@json((float) ($values['bank_balance'] ?? 0))),
                                     Number(@json((float) ($values['total_expenses'] ?? 0))),
                                 ],
-                                backgroundColor: ['#3b82f6', '#22c55e', '#f87171'],
+                                backgroundColor: ['#0F2747', '#16A34A', '#DC2626'],
                                 borderWidth: 0,
                             }],
                         },

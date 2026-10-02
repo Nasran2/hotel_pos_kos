@@ -79,7 +79,7 @@
                         <p class="mt-2 text-2xl font-black text-emerald-600">{{ number_format($customerSummary->total_paid, 2) }}</p>
                     </div>
                     <div class="p-5 sm:p-6">
-                        <p class="text-xs font-black uppercase tracking-widest text-rose-500">Total Due</p>
+                        <p class="text-xs font-black uppercase tracking-widest text-rose-500">Due Balance</p>
                         <p class="mt-2 text-2xl font-black text-rose-600">{{ number_format($customerSummary->due_balance, 2) }}</p>
                     </div>
                     <div class="p-5 sm:p-6">

@@ -44,6 +44,13 @@
             ],
         ],
         [
+            'label' => 'Kitchen',
+            'icon' => 'cooking-pot',
+            'children' => [
+                $item('Kitchen Display', 'cooking-pot', 'kitchen.view', route('kod.index'), $currentRoute === 'kod.index'),
+            ],
+        ],
+        [
             'label' => 'Users',
             'icon' => 'users',
             'children' => [
@@ -158,6 +165,7 @@
                 $item('POS Settings', 'monitor', 'settings.view', route('settings.edit', ['section' => 'pos']), request('section') === 'pos'),
                 $item('Online Platforms', 'smartphone', 'online_order_sources.view', $moduleUrl('online_order_sources'), $currentRoute === 'backoffice.modules.index' && $currentModule === 'online_order_sources'),
                 $item('Barcode Settings', 'scan-barcode', 'settings.view', route('settings.edit', ['section' => 'barcode']), request('section') === 'barcode'),
+                $item('Kitchen Display', 'cooking-pot', 'settings.view', route('settings.edit', ['section' => 'kitchen']), request('section') === 'kitchen'),
                 $item('Permission Settings', 'shield-check', 'roles.edit', $moduleUrl('roles'), $currentModule === 'roles'),
             ],
         ],
@@ -198,11 +206,11 @@
 
 <aside id="sidebar" class="sidebar-shell {{ $drawerOnly ? 'sidebar-drawer-only' : '' }}" data-sidebar @if($drawerOnly) data-sidebar-drawer-only="1" @endif>
     <div class="sidebar-brand">
-        <a href="{{ route('dashboard') }}" class="sidebar-logo" aria-label="Hotel POS dashboard">
+        <a href="{{ route($user?->can('dashboard.view') ? 'dashboard' : ($user?->can('kitchen.view') ? 'kitchen.index' : 'pos.index')) }}" class="sidebar-logo" aria-label="Hotel POS dashboard">
             <span class="sidebar-logo-mark">HP</span>
             <span class="sidebar-brand-text">
                 <strong>Hotel POS</strong>
-                <small>Restaurant operations</small>
+                <small>Made for hospitality</small>
             </span>
         </a>
         <button class="sidebar-toggle {{ $drawerOnly ? 'hidden' : '' }}" data-sidebar-collapse aria-label="Collapse sidebar">
@@ -215,7 +223,7 @@
     </div>
 
     <nav class="sidebar-nav" aria-label="Main navigation">
-        <p class="sidebar-section-label">Main</p>
+        <p class="sidebar-section-label">Workspace</p>
         @foreach($groups as $group)
             @if($group['label'] === 'Dashboard')
                 @php($dashboard = $group['children']->first())

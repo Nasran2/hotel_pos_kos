@@ -71,7 +71,7 @@ class DatabaseSeeder extends Seeder
                 [
                     'category_id' => $product['category_id'],
                     'sku' => Str::slug($product['name']).'-sku',
-                    'barcode' => 'POS'.str_pad((string) random_int(1, 9999), 6, '0', STR_PAD_LEFT),
+                    'barcode' => DB::table('products')->where('name', $product['name'])->value('barcode') ?? 'POS'.Str::ulid(),
                     'cost_price' => $product['cost'],
                     'selling_price' => $product['price'],
                     'maintain_stock' => $product['maintain_stock'],
@@ -131,6 +131,9 @@ class DatabaseSeeder extends Seeder
     private function permissions(): array
     {
         $permissions = [
+            ['name' => 'kitchen.view', 'label' => 'Kitchen display', 'category' => 'kitchen'],
+            ['name' => 'kitchen.update', 'label' => 'Prepare and mark kitchen orders ready', 'category' => 'kitchen'],
+            ['name' => 'pos.send_kitchen', 'label' => 'Send orders to kitchen and mark served', 'category' => 'pos'],
             ['name' => 'dashboard.view', 'label' => 'Dashboard view', 'category' => 'dashboard'],
             ['name' => 'settings.view', 'label' => 'Settings view', 'category' => 'settings'],
             ['name' => 'settings.update', 'label' => 'Settings update', 'category' => 'settings'],

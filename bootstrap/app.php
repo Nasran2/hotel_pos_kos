@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureKitchenDisplayUnlocked;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureSystemUnlocked;
 use Illuminate\Auth\AuthenticationException;
@@ -23,9 +24,11 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permission' => EnsurePermission::class,
             'system.lock' => EnsureSystemUnlocked::class,
+            'kitchen.pin' => EnsureKitchenDisplayUnlocked::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['pin', 'pin_confirmation']);
         $exceptions->render(function (Throwable $e, Request $request) {
             if ($request->isMethod('GET') || $request->expectsJson()) {
                 return null;
@@ -38,7 +41,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            return back()->withInput()->withErrors('System Error: '.$e->getMessage());
+            return back()->withInput($request->except(['pin', 'pin_confirmation', 'password', 'password_confirmation']))->withErrors('System Error: '.$e->getMessage());
         });
     })->create();
 

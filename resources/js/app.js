@@ -1,3 +1,6 @@
+import './kod';
+import './kitchen';
+
 const token = document.querySelector('meta[name="csrf-token"]')?.content;
 const sidebar = document.querySelector('[data-sidebar]');
 const sidebarOverlay = document.querySelector('[data-sidebar-overlay]');
@@ -762,6 +765,7 @@ if (pos) {
             price: Number(item.unit_price),
             discount_amount: Number(item.discount_amount || 0),
             discount_type: item.discount_type || null,
+            note: item.note || null,
         })));
 
         if (data.hold?.customer_id) {
@@ -1061,6 +1065,42 @@ if (pos) {
         }
     });
 
+    document.querySelector('[data-send-kitchen]')?.addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        if (button.disabled) return;
+        if (cart.length === 0) {
+            showPosToast('Add items before sending to kitchen.');
+            return;
+        }
+        button.disabled = true;
+        try {
+            const response = await postJson(pos.dataset.kitchenSendUrl, payload());
+            updateNextToken(response.next_token);
+            window.location.reload();
+        } catch (error) {
+            showPosToast(error.message || 'Unable to send to kitchen.');
+            button.disabled = false;
+        }
+    });
+
+    document.addEventListener('kitchen:resume', async (event) => {
+        if (cart.length && currentHoldId !== event.detail.hold_id) {
+            showPosToast('Hold or clear your current cart before opening another order.');
+            return;
+        }
+        try {
+            const response = await fetch(event.detail.resume_url, { headers: { Accept: 'application/json' } });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'This order is no longer available.');
+            const tableButton = document.querySelector(`[data-table-id="${data.hold.restaurant_table_id}"]`);
+            selectedTable = tableButton ? { id: tableButton.dataset.tableId, name: tableButton.dataset.tableName } : null;
+            document.querySelectorAll('.table-card').forEach((card) => card.classList.toggle('active', card === tableButton));
+            applyHeldOrder(data);
+        } catch (error) {
+            showPosToast(error.message);
+        }
+    });
+
     document.querySelector('[data-hold]')?.addEventListener('click', async () => {
         if (cart.length === 0) {
             showPosToast('Add items first.');
@@ -1208,9 +1248,28 @@ if (pos) {
         if (!selectedTable) {
             currentHoldId = null;
             currentHoldStatus = null;
+            currentToken = null;
             document.querySelectorAll('[data-takeaway-hold]').forEach((card) => card.classList.remove('active'));
             document.querySelector('[data-takeaway-start]')?.classList.add('active');
         }
+        render();
+    });
+
+    document.querySelector('[data-new-order]')?.addEventListener('click', () => {
+        if (cart.length && !currentHoldId) {
+            showPosToast('Hold or send the current order before starting another one.');
+            return;
+        }
+        cart.splice(0, cart.length);
+        activateTakeawayMode();
+        if (customerInput) customerInput.value = defaultCustomerName;
+        if (customerIdInput) customerIdInput.value = defaultCustomerId;
+        if (waiterInput) waiterInput.value = '';
+        if (waiterIdInput) waiterIdInput.value = '';
+        selectedWaiter = null;
+        document.querySelector('[data-selected-waiter]').textContent = 'No waiter';
+        document.querySelector('[data-note]').value = '';
+        document.querySelector('[data-bill-discount]').value = '';
         render();
     });
 
