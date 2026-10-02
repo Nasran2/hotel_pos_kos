@@ -189,10 +189,10 @@
                         @method('PUT')
                         <div class="grid gap-4 sm:grid-cols-2">
                             <label class="grid gap-2 text-sm font-semibold text-slate-700">New four-digit PIN
-                                <input class="form-input" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required>
+                                <input class="form-control" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required>
                             </label>
                             <label class="grid gap-2 text-sm font-semibold text-slate-700">Confirm PIN
-                                <input class="form-input" name="pin_confirmation" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required>
+                                <input class="form-control" name="pin_confirmation" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required>
                             </label>
                         </div>
                         @error('pin')<p class="text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
