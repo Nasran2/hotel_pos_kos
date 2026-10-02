@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('order_token_id')->unique()->constrained();
             $table->foreignId('created_by')->constrained('users');
-            $table->string('status')->default('queued');
+            $table->string('status', 50)->default('queued');
             $table->json('items');
             $table->json('previous_items')->nullable();
             $table->text('note')->nullable();

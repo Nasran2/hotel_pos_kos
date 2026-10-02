@@ -82,7 +82,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['name', 'sku', 'barcode']);
+            $table->index('name');
         });
 
         Schema::create('restaurant_tables', function (Blueprint $table) {
@@ -366,8 +366,8 @@ return new class extends Migration
 
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
-            $table->string('group')->index();
-            $table->string('key')->index();
+            $table->string('group', 100)->index();
+            $table->string('key', 100)->index();
             $table->text('value')->nullable();
             $table->string('type')->default('string');
             $table->timestamps();
