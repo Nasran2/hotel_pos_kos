@@ -14,12 +14,12 @@
 /.zed
 /auth.json
 /node_modules
-/public/build
+# /public/build (allowed for deployment)
 /public/hot
 /public/storage
 /storage/*.key
 /storage/pail
-/vendor
+# /vendor (allowed for deployment)
 _ide_helper.php
 Homestead.json
 Homestead.yaml
