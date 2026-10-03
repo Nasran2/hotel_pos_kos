@@ -46,7 +46,7 @@ return [
                 'phone' => ['label' => 'Phone Number', 'type' => 'text'],
                 'address' => ['label' => 'Address', 'type' => 'textarea'],
                 'email' => ['label' => 'Email', 'type' => 'email'],
-                'password' => ['label' => 'Password', 'type' => 'password', 'required_on_create' => true],
+                'password' => ['label' => 'Password', 'type' => 'password', 'required_on_create' => true, 'list' => false],
                 'password_confirmation' => ['label' => 'Confirm Password', 'type' => 'password', 'virtual' => true],
                 'role_id' => ['label' => 'User Role', 'type' => 'select', 'source' => 'roles', 'required' => true],
                 'is_active' => ['label' => 'Active', 'type' => 'boolean'],

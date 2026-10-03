@@ -2,7 +2,10 @@
     <form method="POST" enctype="multipart/form-data" action="{{ $record ? route('backoffice.modules.update', [$module, $record->id]) : route('backoffice.modules.store', $module) }}" class="pos-card max-w-5xl space-y-4">
         @csrf
         @if($record) @method('PUT') @endif
-        <div class="grid gap-4 md:grid-cols-2">
+        @if($demoProtected ?? false)
+            <p class="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">The admin account and its access are protected in demo mode.</p>
+        @endif
+        <fieldset class="grid gap-4 md:grid-cols-2" @disabled($demoProtected ?? false)>
             @foreach($config['fields'] as $name => $field)
                 @can($config['permission_prefix'].'.field.'.$name)
                     @php
@@ -104,9 +107,9 @@
                     @endif
                 @endcan
             @endforeach
-        </div>
+        </fieldset>
         <div class="flex gap-3 border-t border-slate-200 pt-5">
-            <button class="btn-primary" name="save_action" value="save">Save</button>
+            <button class="btn-primary" name="save_action" value="save" @disabled($demoProtected ?? false)>Save</button>
             @if($module === 'products' && ! $record)
                 <button class="btn-secondary border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" name="save_action" value="add_new">Save and add new product</button>
             @endif

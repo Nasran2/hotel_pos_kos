@@ -50,6 +50,14 @@ class DatabaseSeeder extends Seeder
         $userId = DB::table('users')->where('username', 'admin')->value('id');
         DB::table('user_roles')->updateOrInsert(['user_id' => $userId, 'role_id' => $roleId], ['created_at' => now(), 'updated_at' => now()]);
 
+        DB::table('roles')->updateOrInsert(['name' => 'Kitchen Staff'], [
+            'description' => 'Kitchen display and order preparation', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $kitchenRoleId = DB::table('roles')->where('name', 'Kitchen Staff')->value('id');
+        foreach (DB::table('permissions')->whereIn('name', ['kitchen.view', 'kitchen.update'])->pluck('id') as $permissionId) {
+            DB::table('role_permissions')->updateOrInsert(['role_id' => $kitchenRoleId, 'permission_id' => $permissionId], ['created_at' => now(), 'updated_at' => now()]);
+        }
+
         foreach (['Food', 'Beverage', 'Dessert', 'Service'] as $category) {
             DB::table('categories')->updateOrInsert(['name' => $category], ['is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         }

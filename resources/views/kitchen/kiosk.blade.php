@@ -8,6 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="app-shell kod-screen" data-kod data-kod-unlocked="{{ $unlocked ? '1' : '0' }}" data-kod-ready="0">
+    <x-demo-banner class="demo-banner-floating" />
     <main class="kod-gate" data-kod-gate>
         <div class="kod-brand"><span>HP</span><div><strong>Hotel POS</strong><small>Made for hospitality</small></div></div>
         <section class="kod-access-card">

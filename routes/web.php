@@ -25,6 +25,7 @@ Route::middleware('kitchen.pin')->prefix('kod')->name('kod.')->group(function ()
 });
 
 Route::get('/fix-db', function () {
+    abort_if(config('demo.enabled'), 403, 'Database repair is disabled in demo mode.');
     DB::statement('ALTER TABLE order_tokens ENGINE = InnoDB;');
     DB::statement('ALTER TABLE daily_token_counters ENGINE = InnoDB;');
 

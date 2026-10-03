@@ -224,6 +224,7 @@
                                     $value = $valueFor($group, $field);
                                     $isChecked = filter_var((string) $value, FILTER_VALIDATE_BOOLEAN);
                                     $span = $field['span'] ?? '';
+                                    $demoLocked = config('demo.enabled') && in_array($compound, ['business.name', 'business.tagline'], true);
                                     $currentFile = $settings[$compound]->value ?? null;
                                     $hasImage = is_string($currentFile) && $currentFile !== '';
                                 @endphp
@@ -279,7 +280,12 @@
                                                 value="{{ $value }}"
                                                 @if(($field['type'] ?? 'text') === 'number') step="0.01" @endif
                                                 @if(! empty($field['required'])) required @endif
+                                                @disabled($demoLocked)
                                             >
+                                        @endif
+
+                                        @if($demoLocked)
+                                            <span class="text-xs text-slate-500">Protected in demo mode</span>
                                         @endif
 
                                         @if(! empty($field['hint']) && ($field['type'] ?? 'text') !== 'toggle')

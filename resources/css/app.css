@@ -1397,3 +1397,10 @@ html:not(:fullscreen) .kod-board-shell { display: none !important; }
     .kitchen-dialog-actions button { flex: 1; }
     .kitchen-board-toolbar label, .kitchen-board-toolbar select { width: 100%; }
 }
+
+.demo-banner { background: var(--color-hotel-navy); color: #f7e4b0; line-height: 1.5; }
+.demo-banner-floating { position: absolute; inset: 0 0 auto; z-index: 50; }
+.kod-screen.kod-active .demo-banner-floating { position: static; }
+.demo-banner:empty { display: none; }
+.form-control:disabled, fieldset:disabled .form-control { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
+@media print { .demo-banner { display: none !important; } }

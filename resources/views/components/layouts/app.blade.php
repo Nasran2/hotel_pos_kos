@@ -15,6 +15,7 @@
 
         <div class="min-w-0 flex-1">
             <header class="app-topbar sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+                <x-demo-banner />
                 <div class="flex h-18 items-center justify-between gap-3 px-4 sm:px-6">
                     <button class="topbar-menu-button {{ $posFullscreen ? '' : 'lg:hidden' }}" data-sidebar-open aria-label="Open sidebar">
                         <x-lucide name="menu" class="size-5" />

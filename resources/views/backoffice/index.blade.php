@@ -59,6 +59,9 @@
                     </thead>
                     <tbody>
                         @forelse($records as $record)
+                            @php
+                                $demoRecordProtected = config('demo.enabled') && (($module === 'users' && $record->username === 'admin') || ($module === 'roles' && $record->name === 'Super Admin'));
+                            @endphp
                             <tr>
                                 @foreach($config['fields'] as $name => $field)
                                     @php
@@ -86,7 +89,7 @@
                                                     @php($enabled = (bool) $value)
                                                     @if($name === 'is_active' && auth()->user()->can($config['permission_prefix'].'.edit'))
                                                         <label class="inline-flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-xs font-black {{ $enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700' }}" aria-label="Toggle active status">
-                                                            <input type="checkbox" class="peer sr-only generic-active-checkbox" data-id="{{ $record->id }}" data-module="{{ $module }}" @checked($enabled)>
+                                                            <input type="checkbox" class="peer sr-only generic-active-checkbox" data-id="{{ $record->id }}" data-module="{{ $module }}" @checked($enabled) @disabled($demoRecordProtected)>
                                                             <span class="relative h-5 w-9 rounded-full bg-red-500 shadow-inner ring-1 ring-red-600/20 transition duration-200 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:ring-1 after:ring-slate-200 after:transition after:duration-200 peer-checked:bg-emerald-500 peer-checked:ring-emerald-600/20 peer-checked:after:translate-x-4"></span>
                                                             <span data-active-label>{{ $enabled ? 'Active' : 'Inactive' }}</span>
                                                         </label>
@@ -148,7 +151,7 @@
                                         @can($config['permission_prefix'].'.delete')
                                             <form method="POST" action="{{ route('backoffice.modules.destroy', [$module, $record->id]) }}" data-confirm="Delete this record?">
                                                 @csrf @method('DELETE')
-                                                <button class="btn-mini-danger">Delete</button>
+                                                <button class="btn-mini-danger" @disabled($demoRecordProtected)>Delete</button>
                                             </form>
                                         @endcan
                                     </div>

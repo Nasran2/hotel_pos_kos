@@ -8,6 +8,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\DailyTokenService;
+use App\Services\DemoMode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ use Illuminate\View\View;
 
 class ResourceController extends Controller
 {
-    public function __construct(private readonly DailyTokenService $dailyTokenService) {}
+    public function __construct(private readonly DailyTokenService $dailyTokenService, private readonly DemoMode $demo) {}
 
     public function index(Request $request, string $module): View
     {
@@ -63,7 +64,7 @@ class ResourceController extends Controller
         if ($request->filled('search')) {
             $query->where(function ($builder) use ($config, $request): void {
                 foreach ($config['search'] ?? [] as $column) {
-                    $builder->orWhere($column, 'like', '%' . $request->string('search')->toString() . '%');
+                    $builder->orWhere($column, 'like', '%'.$request->string('search')->toString().'%');
                 }
             });
         }
@@ -89,7 +90,7 @@ class ResourceController extends Controller
                 default => 'created_at',
             };
 
-            $query->whereBetween($config['table'] . '.' . $dateColumn, [$from, $to]);
+            $query->whereBetween($config['table'].'.'.$dateColumn, [$from, $to]);
         }
 
         foreach (($config['filters'] ?? []) as $column => $source) {
@@ -174,6 +175,7 @@ class ResourceController extends Controller
             'record' => null,
             'lookups' => $this->lookups($config),
             'permissionGroups' => $this->permissionGroups(),
+            'demoProtected' => false,
         ]);
     }
 
@@ -271,7 +273,7 @@ class ResourceController extends Controller
                 ->select([
                     'purchase_items.*',
                     'products.name as product_name',
-                    'products.barcode'
+                    'products.barcode',
                 ])
                 ->get();
 
@@ -430,6 +432,7 @@ class ResourceController extends Controller
             'record' => $this->record($config, $id),
             'lookups' => $this->lookups($config),
             'permissionGroups' => $this->permissionGroups(),
+            'demoProtected' => isset($id) && $this->demo->isProtectedResource($module, $id),
         ]);
     }
 
@@ -437,6 +440,7 @@ class ResourceController extends Controller
     {
         $config = $this->module($module);
         $this->authorize("{$config['permission_prefix']}.edit");
+        $this->demo->assertResourceMutable($module, $id);
         $payload = $this->validatedPayload($request, $module, $config, $id);
 
         return DB::transaction(function () use ($request, $module, $config, $payload, $id): RedirectResponse {
@@ -587,7 +591,7 @@ class ResourceController extends Controller
                     ];
                 });
 
-                $subtotal = round($itemsData->sum(fn(array $item): float => $item['quantity'] * $item['unit_cost']), 2);
+                $subtotal = round($itemsData->sum(fn (array $item): float => $item['quantity'] * $item['unit_cost']), 2);
                 $discountTotal = round($itemsData->sum('discount_amount'), 2);
                 $grandTotal = round($itemsData->sum('line_total'), 2);
                 $paidAmount = min((float) ($validatedPurchase['paid_amount'] ?? $purchase->paid_amount), $grandTotal);
@@ -647,6 +651,7 @@ class ResourceController extends Controller
     {
         $config = $this->module($module);
         $this->authorize("{$config['permission_prefix']}.delete");
+        $this->demo->assertResourceMutable($module, $id);
 
         DB::transaction(function () use ($module, $config, $id): void {
             $this->beforeDestroy($module, $id);
@@ -717,6 +722,7 @@ class ResourceController extends Controller
     {
         $config = $this->module($module);
         $this->authorize("{$config['permission_prefix']}.edit");
+        $this->demo->assertResourceMutable($module, $id);
 
         if (($config['fields']['is_active']['type'] ?? null) !== 'boolean') {
             abort(404);
@@ -738,6 +744,10 @@ class ResourceController extends Controller
             'id' => $id,
             'is_active' => (int) $validated['is_active'],
         ]);
+
+        if ($module === 'users') {
+            unset($record->password, $record->remember_token);
+        }
 
         return response()->json([
             'ok' => true,
@@ -794,7 +804,7 @@ class ResourceController extends Controller
                     'amount' => $amount,
                     'payment_method' => $validated['payment_method'],
                     'expense_date' => $validated['paid_at'] ?? now(),
-                    'note' => $validated['note'] ?: 'Waiter incentive payment for ' . $waiter->name,
+                    'note' => $validated['note'] ?: 'Waiter incentive payment for '.$waiter->name,
                     'attachment_path' => null,
                     'source_type' => 'waiter_incentive_payment',
                     'source_id' => $id,
@@ -872,7 +882,7 @@ class ResourceController extends Controller
                     'amount' => $deductionAmount,
                     'payment_method' => $method,
                     'expense_date' => $paidAt,
-                    'note' => trim('Sale deduction for invoice ' . ($sale->invoice_no ?? $id) . ' (' . $channelLabel . '). ' . ($validated['note'] ?? '')),
+                    'note' => trim('Sale deduction for invoice '.($sale->invoice_no ?? $id).' ('.$channelLabel.'). '.($validated['note'] ?? '')),
                     'source_type' => 'sale_deduction',
                     'source_id' => $deductionId,
                 ]));
@@ -942,7 +952,7 @@ class ResourceController extends Controller
             ];
         });
 
-        $subtotal = round($items->sum(fn(array $item): float => $item['quantity'] * $item['unit_cost']), 2);
+        $subtotal = round($items->sum(fn (array $item): float => $item['quantity'] * $item['unit_cost']), 2);
         $discountTotal = round($items->sum('discount_amount'), 2);
         $grandTotal = round($items->sum('line_total'), 2);
         $paidAmount = min((float) ($validated['paid_amount'] ?? 0), $grandTotal);
@@ -1175,7 +1185,7 @@ class ResourceController extends Controller
      */
     private function receiptSettings(): array
     {
-        $settings = DB::table('settings')->get()->mapWithKeys(fn($setting) => [$setting->group . '_' . $setting->key => $setting->value])->all();
+        $settings = DB::table('settings')->get()->mapWithKeys(fn ($setting) => [$setting->group.'_'.$setting->key => $setting->value])->all();
 
         return [
             'business_name' => $settings['business_name'] ?? 'Hotel POS',
@@ -1304,7 +1314,7 @@ class ResourceController extends Controller
                     'balance_after' => $newStock,
                     'source_type' => 'sale',
                     'source_id' => $id,
-                    'note' => 'Restocked after deleting sale ' . ($sale->invoice_no ?? "#{$id}"),
+                    'note' => 'Restocked after deleting sale '.($sale->invoice_no ?? "#{$id}"),
                 ]));
             }
         }
@@ -1361,7 +1371,7 @@ class ResourceController extends Controller
 
         $latestActivity = DB::table('activity_logs')
             ->where('module', $module)
-            ->where('properties', 'like', '%"id":' . $id . '%')
+            ->where('properties', 'like', '%"id":'.$id.'%')
             ->latest('created_at')
             ->first();
 
@@ -1371,7 +1381,7 @@ class ResourceController extends Controller
 
         return [
             'Create' => (string) $latestActivity->description,
-            'Update' => 'Last activity at ' . (string) $latestActivity->created_at,
+            'Update' => 'Last activity at '.(string) $latestActivity->created_at,
             'Delete' => 'No delete record linked.',
             'Payments' => 'No payment data linked.',
             'Reports' => 'No report data linked.',
@@ -1593,36 +1603,36 @@ class ResourceController extends Controller
 
         $activityCount = (int) DB::table('activity_logs')
             ->where('module', 'sales')
-            ->where('properties', 'like', '%"sale_id":' . $saleId . '%')
+            ->where('properties', 'like', '%"sale_id":'.$saleId.'%')
             ->count();
         $lastActivity = DB::table('activity_logs')
             ->where('module', 'sales')
-            ->where('properties', 'like', '%"sale_id":' . $saleId . '%')
+            ->where('properties', 'like', '%"sale_id":'.$saleId.'%')
             ->latest('created_at')
             ->first();
 
         return [
             'Sale items' => $itemCount > 0
-                ? $itemCount . ' item rows, qty ' . number_format($itemQuantity, 3) . ' (Rs. ' . number_format($itemTotal, 2) . ')'
+                ? $itemCount.' item rows, qty '.number_format($itemQuantity, 3).' (Rs. '.number_format($itemTotal, 2).')'
                 : 'No sale items linked.',
             'Payments' => $paymentCount > 0
-                ? $paymentCount . ' payment(s), Rs. ' . number_format($paymentTotal, 2) . ($lastPaymentAt ? ' | Last: ' . $lastPaymentAt : '')
+                ? $paymentCount.' payment(s), Rs. '.number_format($paymentTotal, 2).($lastPaymentAt ? ' | Last: '.$lastPaymentAt : '')
                 : 'No payments linked.',
             'Deductions' => $deductionCount > 0
-                ? $deductionCount . ' deduction(s), Rs. ' . number_format($deductionTotal, 2) . ($lastDeductionAt ? ' | Last: ' . $lastDeductionAt : '')
+                ? $deductionCount.' deduction(s), Rs. '.number_format($deductionTotal, 2).($lastDeductionAt ? ' | Last: '.$lastDeductionAt : '')
                 : 'No deductions linked.',
             'Expense records' => $expenseCount > 0
-                ? $expenseCount . ' expense record(s), Rs. ' . number_format($expenseTotal, 2)
+                ? $expenseCount.' expense record(s), Rs. '.number_format($expenseTotal, 2)
                 : 'No deduction expenses linked.',
             'Stock effect' => $stockMoveCount > 0
-                ? $stockMoveCount . ' stock movement(s), qty ' . number_format($stockMovedQty, 3)
+                ? $stockMoveCount.' stock movement(s), qty '.number_format($stockMovedQty, 3)
                 : 'No stock movements linked.',
-            'Profit records' => 'Profit for this sale: Rs. ' . number_format($profitAmount, 2),
+            'Profit records' => 'Profit for this sale: Rs. '.number_format($profitAmount, 2),
             'Waiter incentive' => $incentive
-                ? (($incentive->waiter_name ?? 'Waiter') . ' earned Rs. ' . number_format((float) $incentive->amount, 2) . ' (' . number_format((float) $incentive->percentage, 2) . '%)')
+                ? (($incentive->waiter_name ?? 'Waiter').' earned Rs. '.number_format((float) $incentive->amount, 2).' ('.number_format((float) $incentive->percentage, 2).'%)')
                 : 'No waiter incentive linked.',
             'Activity log' => $activityCount > 0
-                ? $activityCount . ' activity log(s) | Last: ' . ($lastActivity->description ?? 'Updated')
+                ? $activityCount.' activity log(s) | Last: '.($lastActivity->description ?? 'Updated')
                 : 'No activity logs linked.',
         ];
     }
@@ -1632,7 +1642,7 @@ class ResourceController extends Controller
         return match (strtolower($channel)) {
             'online' => 'Online sale',
             'pos' => 'Normal POS sale',
-            default => str($channel)->replace('_', ' ')->headline() . ' sale',
+            default => str($channel)->replace('_', ' ')->headline().' sale',
         };
     }
 
@@ -1661,7 +1671,7 @@ class ResourceController extends Controller
 
         return DB::table('expense_categories')->insertGetId([
             'name' => $name,
-            'description' => $name . ' expenses',
+            'description' => $name.' expenses',
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),

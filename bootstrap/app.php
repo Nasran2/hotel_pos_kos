@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CoordinateDemoRequests;
 use App\Http\Middleware\EnsureKitchenDisplayUnlocked;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureSystemUnlocked;
@@ -21,6 +22,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(CoordinateDemoRequests::class);
         $middleware->alias([
             'permission' => EnsurePermission::class,
             'system.lock' => EnsureSystemUnlocked::class,

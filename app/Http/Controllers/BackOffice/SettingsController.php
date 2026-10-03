@@ -5,6 +5,7 @@ namespace App\Http\Controllers\BackOffice;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateKitchenPinRequest;
 use App\Models\ActivityLog;
+use App\Services\DemoMode;
 use App\Services\KitchenDisplayAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,9 +31,10 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, DemoMode $demo): RedirectResponse
     {
         $this->authorize('settings.update');
+        $demo->validateSettings($request);
 
         $sections = $this->sections();
         $sectionKey = $this->sectionKey($request->input('section'), $sections);

@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+    <x-demo-banner class="demo-banner-floating" />
     <main class="flex min-h-screen">
         <!-- Left Side: Hero / Brand -->
         <section class="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-hotel-navy p-12 text-white lg:flex">

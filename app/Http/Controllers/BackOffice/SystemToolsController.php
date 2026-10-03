@@ -527,6 +527,7 @@ class SystemToolsController extends Controller
     private function authorizeSystemTools(Request $request): void
     {
         abort_unless($request->user()?->hasRole('Developer'), 403);
+        abort_if(config('demo.enabled') && ! $request->isMethod('GET'), 403, 'System tools cannot modify the demo installation.');
     }
 
     /**
