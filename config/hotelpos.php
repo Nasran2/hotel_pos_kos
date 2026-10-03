@@ -216,6 +216,7 @@ return [
                 'name' => ['label' => 'Name', 'type' => 'text', 'required' => true, 'unique' => true],
                 'commission_type' => ['label' => 'Commission Type', 'type' => 'select_static', 'options' => ['percentage' => 'Percentage', 'fixed' => 'Fixed']],
                 'commission_value' => ['label' => 'Commission Value', 'type' => 'number'],
+                'default_payment_method' => ['label' => 'Default Payment Method', 'type' => 'select_static', 'options' => ['platform_payment' => 'Platform collects', 'cash' => 'Cash', 'card' => 'Card', 'bank' => 'Bank transfer', 'online' => 'Online payment']],
                 'is_active' => ['label' => 'Active', 'type' => 'boolean'],
             ],
         ],

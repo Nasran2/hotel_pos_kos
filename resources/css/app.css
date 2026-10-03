@@ -1404,3 +1404,69 @@ html:not(:fullscreen) .kod-board-shell { display: none !important; }
 .demo-banner:empty { display: none; }
 .form-control:disabled, fieldset:disabled .form-control { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
 @media print { .demo-banner { display: none !important; } }
+
+
+/* Online order workspace */
+.online-workspace { max-width: 1720px; margin-inline: auto; }
+.online-eyebrow { color: #927024; font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 6px; }
+.online-panel { padding: 22px; border: 1px solid #e4e9f0; box-shadow: 0 3px 12px #0f274704; }
+.online-section-heading { display: flex; gap: 12px; align-items: center; }
+.online-section-heading > span { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; color: #0f2747; background: #f7efd9; font-weight: 800; }
+.online-section-heading h3 { font-weight: 750; font-size: 17px; color: #0f2747; }
+.online-section-heading p { color: #718096; font-size: 12px; margin-top: 3px; }
+.online-label { display: grid; gap: 6px; color: #46546a; font-size: 12px; font-weight: 650; }
+.online-source { position: relative; cursor: pointer; }
+.online-source input { position: absolute; inset: 12px auto auto 10px; accent-color: #2563eb; }
+.online-source > span { display: grid; min-height: 70px; gap: 4px; align-content: center; padding: 12px 10px 12px 30px; border: 1px solid #e0e7ef; border-radius: 12px; background: #fff; }
+.online-source strong { font-size: 12px; color: #0f2747; }
+.online-source small { font-size: 10px; color: #718096; }
+.online-source:has(input:checked) > span { border-color: #d4a843; background: #fcf8ed; box-shadow: inset 0 0 0 1px #d4a843; }
+.online-source:has(input:focus-visible) > span { outline: 2px solid #2563eb; outline-offset: 3px; }
+.online-menu { max-height: 490px; overflow-y: auto; padding: 2px; }
+.online-product { display: grid; align-content: start; gap: 7px; min-height: 148px; text-align: left; padding: 13px; border-radius: 13px; border: 1px solid #e1e7f0; transition: border-color .15s, background .15s; }
+.online-product:hover:not(:disabled) { background: #fcf8ed; border-color: #d4a843; }
+.online-product-icon { display: grid; width: 35px; height: 35px; place-items: center; background: #eff4fa; color: #0f2747; border-radius: 10px; font-weight: 800; font-size: 18px; }
+.online-product strong { font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.online-product > span:not(.online-product-icon) { font-size: 12px; color: #526176; }
+.online-product small { color: #2563eb; font-size: 11px; font-weight: 700; }
+.online-product:disabled { opacity: .5; cursor: not-allowed; }
+.online-product[hidden], .online-order-row [hidden], .online-summary [hidden] { display: none; }
+.online-cart { max-height: 350px; overflow-y: auto; }
+.online-cart-empty { padding: 26px 12px; text-align: center; font-weight: 600; font-size: 14px; color: #526176; border: 1px dashed #d8e1ed; border-radius: 12px; }
+.online-cart-empty span { font-weight: 400; font-size: 12px; line-height: 2; }
+.online-cart-line { padding-block: 13px; border-bottom: 1px solid #e9edf3; }
+.online-cart-line > div > strong { font-size: 13px; }
+.online-cart-line > div > button { color: #dc2626; font-size: 11px; }
+.online-cart-controls { display: grid; grid-template-columns: 112px 85px 1fr; align-items: end; gap: 10px; margin-top: 10px; }
+.online-cart-controls label { color: #718096; font-size: 10px; display: grid; gap: 5px; }
+.online-cart-controls input { width: 100%; min-width: 0; height: 34px; padding: 4px 6px; border: 1px solid #dce4ef; border-radius: 7px; font-size: 12px; color: #1f2937; }
+.online-quantity { display: grid; grid-template-columns: 25px 1fr 25px; }
+.online-quantity button { border: 1px solid #dce4ef; background: #f5f7fa; border-radius: 6px; font-size: 14px; }
+.online-quantity input { border-radius: 0; text-align: center; appearance: textfield; padding-inline: 1px; }
+.online-quantity input::-webkit-inner-spin-button { appearance: none; }
+.online-cart-controls > strong { font-size: 12px; text-align: right; padding-bottom: 8px; white-space: nowrap; }
+.online-totals > div { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
+.online-totals dd { font-weight: 650; }
+.online-totals .online-grand-total { color: #0f2747; background: #f5f7fa; padding: 15px 12px; border-radius: 10px; margin-block: 6px; font-weight: 800; font-size: 16px; }
+.online-grand-total dd { color: #2563eb; }
+.online-kitchen { border: 1px solid #dfe6ef; border-radius: 14px; background: #fff; padding: 15px 20px; }
+.online-kitchen summary { font-size: 14px; font-weight: 700; cursor: pointer; color: #0f2747; }
+.online-kitchen summary span { color: #718096; font-size: 12px; font-weight: 400; margin-left: 14px; }
+.online-order-row { display: grid; gap: 16px; padding: 18px; border: 1px solid #e3e9f0; border-radius: 13px; background: #fff; }
+.online-platform-tag, .online-status { font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 6px; background: #eff4fb; color: #0f2747; }
+.online-status[data-stage=ready], .online-status[data-stage=delivered] { color: #15803d; background: #effbf2; }
+.online-status[data-stage=preparing] { color: #2563eb; background: #eff6ff; }
+.online-status[data-stage=cancelled] { color: #dc2626; background: #fff1f2; }
+@media (min-width: 1024px) {
+    .online-entry-grid { grid-template-columns: minmax(0, 1fr) 390px; }
+    .online-summary { position: sticky; top: 96px; }
+    .online-order-row { grid-template-columns: minmax(200px, 1fr) 150px minmax(300px, 1fr); }
+}
+@media (max-width: 639px) {
+    .online-panel { padding: 16px; }
+    .online-kitchen summary span { display: block; margin: 5px 0 0; }
+}
+
+.online-payment-dialog { border: 1px solid #dfe6ef; border-radius: 16px; padding: 0; width: min(440px, calc(100vw - 32px)); max-height: calc(100vh - 40px); box-shadow: 0 24px 70px #0f274726; }
+.online-payment-dialog::backdrop { background: #0f274770; backdrop-filter: blur(3px); }
+.online-payment-panel { position: relative; padding: 28px; }

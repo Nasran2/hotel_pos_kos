@@ -3,23 +3,33 @@
 namespace App\Http\Controllers\BackOffice;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreOnlineOrderRequest;
 use App\Models\ActivityLog;
 use App\Models\OnlineOrder;
 use App\Models\OnlineOrderSource;
 use App\Services\DailyTokenService;
+use App\Services\KitchenOrderService;
+use App\Services\OnlineOrderFulfillment;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class OnlineOrderController extends Controller
 {
-    public function __construct(private readonly DailyTokenService $dailyTokenService) {}
+    public function __construct(
+        private readonly DailyTokenService $dailyTokenService,
+        private readonly KitchenOrderService $kitchenOrders,
+        private readonly OnlineOrderFulfillment $fulfillment,
+    ) {}
 
     public function index(Request $request): View|RedirectResponse
     {
         $this->authorize('online_orders.view');
 
+        $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
         $register = $this->currentRegister();
 
         if (! $register) {
@@ -31,7 +41,8 @@ class OnlineOrderController extends Controller
         $orders = OnlineOrder::query()
             ->leftJoin('online_order_sources', 'online_order_sources.id', '=', 'online_orders.online_order_source_id')
             ->leftJoin('order_tokens', 'order_tokens.id', '=', 'online_orders.order_token_id')
-            ->select('online_orders.*', 'online_order_sources.name as source_name', 'order_tokens.token_number', 'order_tokens.token_date')
+            ->leftJoin('kitchen_orders', 'kitchen_orders.order_token_id', '=', 'online_orders.order_token_id')
+            ->select('online_orders.*', 'online_order_sources.name as source_name', 'order_tokens.token_number', 'order_tokens.token_date', 'kitchen_orders.status as kitchen_status')
             ->when($request->filled('source_id') && $request->input('source_id') !== 'all', fn ($query) => $query->where('online_order_source_id', (int) $request->input('source_id')))
             ->when($request->filled('order_status') && $request->input('order_status') !== 'all', fn ($query) => $query->where('order_status', $request->input('order_status')))
             ->when($request->filled('payment_status') && $request->input('payment_status') !== 'all', fn ($query) => $query->where('payment_status', $request->input('payment_status')))
@@ -55,10 +66,22 @@ class OnlineOrderController extends Controller
             'products' => $products,
             'orders' => $orders,
             'currency' => $this->currencySymbol(),
+            'categories' => DB::table('categories')->where('is_active', true)->whereNull('deleted_at')->orderBy('name')->get(),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function feed(Request $request): JsonResponse
+    {
+        $this->authorize('online_orders.view');
+        $validated = $request->validate(['ids' => ['required', 'array', 'max:20'], 'ids.*' => ['integer', 'min:1']]);
+        $orders = OnlineOrder::query()->leftJoin('kitchen_orders', 'kitchen_orders.order_token_id', '=', 'online_orders.order_token_id')
+            ->whereIn('online_orders.id', $validated['ids'])
+            ->get(['online_orders.id', 'online_orders.order_status', 'online_orders.payment_status', 'online_orders.balance_amount', 'kitchen_orders.status as kitchen_status']);
+
+        return response()->json(['orders' => $orders])->header('Cache-Control', 'no-store');
+    }
+
+    public function store(StoreOnlineOrderRequest $request): RedirectResponse
     {
         $this->authorize('online_orders.create');
         $register = $this->currentRegister();
@@ -67,28 +90,9 @@ class OnlineOrderController extends Controller
             return back()->withErrors('Open register first.');
         }
 
-        $validated = $request->validate([
-            'online_order_source_id' => ['required', 'exists:online_order_sources,id'],
-            'order_reference' => ['required', 'string', 'max:255', 'unique:online_orders,order_reference'],
-            'customer_name' => ['required', 'string', 'max:255'],
-            'customer_phone' => ['nullable', 'string', 'max:255'],
-            'delivery_address' => ['nullable', 'string'],
-            'discount_type' => ['nullable', 'in:fixed,percentage'],
-            'discount_value' => ['nullable', 'numeric', 'min:0'],
-            'delivery_charge' => ['nullable', 'numeric', 'min:0'],
-            'payment_status' => ['required', 'in:paid,cash_on_delivery,pending,partially_paid'],
-            'payment_method' => ['required', 'in:cash,bank,card,online,platform_payment'],
-            'order_status' => ['required', 'in:new,preparing,ready,out_for_delivery,delivered,cancelled'],
-            'paid_amount' => ['nullable', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
-            'items_payload' => ['required', 'string'],
-        ]);
-
-        $items = json_decode($validated['items_payload'], true);
-
-        if (! is_array($items) || count($items) === 0) {
-            return back()->withErrors('Add at least one item.');
-        }
+        $validated = $request->validated();
+        $items = $validated['items'];
+        $products = DB::table('products')->whereIn('id', array_column($items, 'id'))->get()->keyBy('id');
 
         $source = OnlineOrderSource::query()->findOrFail((int) $validated['online_order_source_id']);
 
@@ -104,12 +108,12 @@ class OnlineOrderController extends Controller
                 return back()->withErrors('Invalid item payload.');
             }
 
-            $product = DB::table('products')->where('id', $productId)->first();
+            $product = $products->get($productId);
             if (! $product) {
                 return back()->withErrors('One or more selected products are invalid.');
             }
 
-            $lineTotal = $qty * $price;
+            $lineTotal = round($qty * $price, 2);
             $subtotal += $lineTotal;
 
             $lineItems[] = [
@@ -124,7 +128,7 @@ class OnlineOrderController extends Controller
         $discountValue = (float) ($validated['discount_value'] ?? 0);
         $discountType = $validated['discount_type'] ?? 'fixed';
         $discountAmount = $discountType === 'percentage' ? ($subtotal * $discountValue / 100) : $discountValue;
-        $discountAmount = min($discountAmount, $subtotal);
+        $discountAmount = round(min($discountAmount, $subtotal), 2);
         $deliveryCharge = (float) ($validated['delivery_charge'] ?? 0);
 
         $commissionType = $source->commission_type;
@@ -133,7 +137,11 @@ class OnlineOrderController extends Controller
             ? (($subtotal - $discountAmount) * $commissionValue / 100)
             : $commissionValue;
 
-        $total = max(0.0, $subtotal - $discountAmount + $deliveryCharge);
+        $commissionAmount = round($commissionAmount, 2);
+        $total = round(max(0.0, $subtotal - $discountAmount + $deliveryCharge), 2);
+        if ($total > 9999999999.99 || $subtotal > 9999999999.99) {
+            throw ValidationException::withMessages(['items_payload' => 'The order total is too large.']);
+        }
         $requestedPaid = (float) ($validated['paid_amount'] ?? 0);
         $paidAmount = match ($validated['payment_status']) {
             'paid' => $total,
@@ -143,7 +151,7 @@ class OnlineOrderController extends Controller
         $balanceAmount = max(0.0, $total - $paidAmount);
         $paymentStatus = $balanceAmount <= 0.0001 ? 'paid' : ($paidAmount > 0 ? 'partially_paid' : $validated['payment_status']);
 
-        DB::transaction(function () use ($register, $validated, $lineItems, $source, $subtotal, $discountType, $discountValue, $discountAmount, $deliveryCharge, $commissionType, $commissionValue, $commissionAmount, $total, $paidAmount, $balanceAmount, $paymentStatus): void {
+        DB::transaction(function () use ($register, $validated, $lineItems, $source, $products, $subtotal, $discountType, $discountValue, $discountAmount, $deliveryCharge, $commissionType, $commissionValue, $commissionAmount, $total, $paidAmount, $balanceAmount, $paymentStatus): void {
             $orderToken = $this->dailyTokenService->issue();
             $onlineOrderId = DB::table('online_orders')->insertGetId([
                 'register_id' => $register->id,
@@ -184,8 +192,8 @@ class OnlineOrderController extends Controller
 
             $profit = 0.0;
             foreach ($lineItems as $item) {
-                $product = DB::table('products')->where('id', $item['product_id'])->first();
-                $profit += (($item['unit_price'] - (float) ($product->cost_price ?? 0)) * $item['qty']);
+                $product = $products->get($item['product_id']);
+                $profit += $item['total'] - (float) ($product->cost_price ?? 0) * $item['qty'];
             }
             $profit -= $discountAmount;
             $profit -= $commissionAmount;
@@ -220,7 +228,7 @@ class OnlineOrderController extends Controller
             ]);
 
             foreach ($lineItems as $item) {
-                $product = DB::table('products')->where('id', $item['product_id'])->first();
+                $product = $products->get($item['product_id']);
                 DB::table('sale_items')->insert([
                     'sale_id' => $saleId,
                     'product_id' => $item['product_id'],
@@ -229,7 +237,7 @@ class OnlineOrderController extends Controller
                     'unit_cost' => (float) ($product->cost_price ?? 0),
                     'unit_price' => $item['unit_price'],
                     'line_total' => $item['total'],
-                    'profit' => (($item['unit_price'] - (float) ($product->cost_price ?? 0)) * $item['qty']),
+                    'profit' => round($item['total'] - (float) ($product->cost_price ?? 0) * $item['qty'], 2),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -314,9 +322,12 @@ class OnlineOrderController extends Controller
                 }
             }
 
-            if ($this->shouldReduceStock($validated['order_status'])) {
-                $this->reduceStock($onlineOrderId, $saleId, $lineItems);
-            }
+            $this->kitchenOrders->send($orderToken, [
+                'items' => array_map(fn (array $item): array => [
+                    'id' => $item['product_id'], 'name' => $item['product_name'], 'quantity' => $item['qty'],
+                ], $lineItems),
+                'note' => $validated['notes'] ?? null,
+            ]);
 
             ActivityLog::record('create', 'online_orders', 'Online order created.', [
                 'online_order_id' => $onlineOrderId,
@@ -326,32 +337,57 @@ class OnlineOrderController extends Controller
             ]);
         });
 
-        return redirect()->route('online-orders.index')->with('status', 'Online order created.');
+        return redirect()->route('online-orders.index')->with('status', 'Order accepted and sent to kitchen.');
+    }
+
+    public function sendToKitchen(int $onlineOrder): RedirectResponse
+    {
+        $this->authorize('online_orders.edit');
+        DB::transaction(function () use ($onlineOrder): void {
+            $order = OnlineOrder::query()->lockForUpdate()->findOrFail($onlineOrder);
+            if (! in_array($order->order_status, ['new', 'preparing'], true)) {
+                throw ValidationException::withMessages(['order' => 'Only new or preparing orders can be sent to kitchen.']);
+            }
+            if (! $order->order_token_id) {
+                $order->update(['order_token_id' => $this->dailyTokenService->issue()->id]);
+                DB::table('sales')->where('id', $order->sale_id)->update(['order_token_id' => $order->order_token_id]);
+            }
+            $ticket = DB::table('kitchen_orders')->where('order_token_id', $order->order_token_id)->first();
+            if ($ticket) {
+                return;
+            }
+            $id = $this->kitchenOrders->send($order->orderToken, [
+                'items' => $order->items->map(fn ($item): array => ['id' => $item->product_id, 'name' => $item->product_name, 'quantity' => $item->qty])->all(),
+                'note' => $order->notes,
+            ]);
+            if ($order->order_status === 'preparing') {
+                $this->kitchenOrders->transition($id, 'preparing', 1);
+            }
+        });
+
+        return back()->with('status', 'Kitchen ticket saved.');
     }
 
     public function addPayment(Request $request, int $onlineOrder): RedirectResponse
     {
         $this->authorize('online_orders.add_payment');
 
-        $order = OnlineOrder::query()->where('id', $onlineOrder)->firstOrFail();
-
-        if ($order->order_status === 'cancelled') {
-            return back()->withErrors('Cannot add payment to cancelled order.');
-        }
-
         $validated = $request->validate([
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            'amount' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:9999999999.99'],
             'payment_method' => ['required', 'in:cash,bank,card,online,platform_payment'],
             'payment_date' => ['required', 'date'],
-            'note' => ['nullable', 'string'],
+            'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $amount = min((float) $validated['amount'], (float) $order->balance_amount);
-        if ($amount <= 0) {
-            return back()->withErrors('Payment amount must be greater than 0.');
-        }
-
-        DB::transaction(function () use ($order, $validated, $amount): void {
+        DB::transaction(function () use ($onlineOrder, $validated): void {
+            $order = OnlineOrder::query()->lockForUpdate()->findOrFail($onlineOrder);
+            if ($order->order_status === 'cancelled') {
+                throw ValidationException::withMessages(['amount' => 'Cannot add payment to cancelled order.']);
+            }
+            $amount = min((float) $validated['amount'], (float) $order->balance_amount);
+            if ($amount <= 0) {
+                throw ValidationException::withMessages(['amount' => 'This order has no outstanding balance.']);
+            }
             $register = $this->currentRegister();
 
             DB::table('online_order_payments')->insert([
@@ -437,11 +473,22 @@ class OnlineOrderController extends Controller
             'order_status' => ['required', 'in:new,preparing,ready,out_for_delivery,delivered,cancelled'],
         ]);
 
-        $order = OnlineOrder::query()->with('items')->findOrFail($onlineOrder);
-        $saleId = $order->sale_id;
-
-        DB::transaction(function () use ($validated, $order, $saleId): void {
+        DB::transaction(function () use ($validated, $onlineOrder): void {
+            $order = OnlineOrder::query()->lockForUpdate()->findOrFail($onlineOrder);
+            $saleId = $order->sale_id;
             $newStatus = $validated['order_status'];
+            if ($order->order_status === $newStatus) {
+                return;
+            }
+            $allowed = [
+                'new' => ['preparing', 'ready', 'cancelled'],
+                'preparing' => ['ready', 'cancelled'],
+                'ready' => ['out_for_delivery', 'delivered', 'cancelled'],
+                'out_for_delivery' => ['delivered', 'cancelled'],
+            ];
+            if (! in_array($newStatus, $allowed[$order->order_status] ?? [], true)) {
+                throw ValidationException::withMessages(['order_status' => 'This order cannot move back or reopen. Refresh to see its current status.']);
+            }
 
             if ($newStatus === 'cancelled') {
                 $this->cancelOnlineOrder($order, $saleId);
@@ -449,13 +496,17 @@ class OnlineOrderController extends Controller
                 return;
             }
 
-            if ($this->shouldReduceStock($newStatus) && ! $order->stock_reduced_at) {
-                $lineItems = $order->items->map(fn ($item) => [
-                    'product_id' => (int) $item->product_id,
-                    'qty' => (float) $item->qty,
-                ])->values()->all();
-
-                $this->reduceStock($order->id, $saleId, $lineItems);
+            $ticket = DB::table('kitchen_orders')->where('order_token_id', $order->order_token_id)->whereNull('deleted_at')->first();
+            if ($ticket && in_array($ticket->status, ['stop_requested', 'stopped', 'cancelled'], true)) {
+                throw ValidationException::withMessages(['order_status' => 'Kitchen preparation is stopped or awaiting confirmation. Cancel this order and create a new order if needed.']);
+            }
+            if ($ticket && in_array($newStatus, ['preparing', 'ready'], true)) {
+                $this->kitchenOrders->transition($ticket->id, $newStatus, (int) $ticket->revision);
+            } elseif ($ticket && in_array($newStatus, ['out_for_delivery', 'delivered'], true) && $ticket->status === 'ready') {
+                $this->kitchenOrders->transition($ticket->id, 'served', (int) $ticket->revision);
+            }
+            if ($this->shouldReduceStock($newStatus)) {
+                $this->fulfillment->reduceStock($order->fresh());
             }
 
             DB::table('online_orders')->where('id', $order->id)->update([
@@ -504,7 +555,7 @@ class OnlineOrderController extends Controller
     private function cancelOnlineOrder(OnlineOrder $order, ?int $saleId): void
     {
         if ($order->stock_reduced_at) {
-            $items = DB::table('online_order_items')->where('online_order_id', $order->id)->get();
+            $items = DB::table('online_order_items')->where('online_order_id', $order->id)->orderBy('product_id')->get();
             foreach ($items as $item) {
                 $product = DB::table('products')->where('id', $item->product_id)->lockForUpdate()->first();
                 if (! $product || ! $product->maintain_stock) {
@@ -527,6 +578,10 @@ class OnlineOrderController extends Controller
             }
         }
 
+        $this->kitchenOrders->cancelForToken($order->order_token_id, 'Online order '.$order->order_reference.' cancelled by cashier. Stop preparing this order.');
+        $commissionExpenses = DB::table('expenses')->where('source_type', 'online_order_commission')->where('source_id', $order->id)->pluck('id');
+        DB::table('bank_transactions')->where('source_type', 'expense')->whereIn('source_id', $commissionExpenses)->delete();
+
         DB::table('expenses')
             ->where('source_type', 'online_order_commission')
             ->where('source_id', $order->id)
@@ -537,6 +592,7 @@ class OnlineOrderController extends Controller
 
         DB::table('online_orders')->where('id', $order->id)->update([
             'order_status' => 'cancelled',
+            'stock_reduced_at' => null,
             'updated_at' => now(),
         ]);
 
@@ -554,49 +610,6 @@ class OnlineOrderController extends Controller
             'online_order_id' => $order->id,
             'reference' => $order->order_reference,
         ]);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $lineItems
-     */
-    private function reduceStock(int $onlineOrderId, ?int $saleId, array $lineItems): void
-    {
-        foreach ($lineItems as $item) {
-            $product = DB::table('products')->where('id', (int) $item['product_id'])->lockForUpdate()->first();
-            if (! $product || ! $product->maintain_stock) {
-                continue;
-            }
-
-            if ((float) $product->stock_quantity < (float) $item['qty']) {
-                abort(422, $product->name.' does not have enough stock.');
-            }
-
-            $newStock = (float) $product->stock_quantity - (float) $item['qty'];
-            DB::table('products')->where('id', $product->id)->update(['stock_quantity' => $newStock, 'updated_at' => now()]);
-            DB::table('stock_movements')->insert([
-                'product_id' => $product->id,
-                'type' => 'online_order',
-                'quantity' => -abs((float) $item['qty']),
-                'balance_after' => $newStock,
-                'source_type' => 'online_order',
-                'source_id' => $onlineOrderId,
-                'note' => 'Online order stock deduction',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-
-        DB::table('online_orders')->where('id', $onlineOrderId)->update([
-            'stock_reduced_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        if ($saleId) {
-            DB::table('sales')->where('id', $saleId)->update([
-                'stock_reduced_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
     }
 
     private function shouldReduceStock(string $status): bool

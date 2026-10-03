@@ -31,7 +31,7 @@ for (const display of document.querySelectorAll('[data-kitchen-display]')) {
     };
     const action = (order, status, label, kind = 'primary') => `<button type="button" class="btn-${kind}" data-kitchen-action="${status}" data-order-id="${order.id}" ${busy ? 'disabled' : ''}>${label}</button>`;
     const itemsMarkup = (order) => `<ul class="kitchen-items">${order.items.map((item) => `<li><b>${escapeHtml(item.quantity)}×</b><span>${escapeHtml(item.name)}${item.note ? `<small>${escapeHtml(item.note)}</small>` : ''}</span></li>`).join('')}</ul>`;
-    const locationLabel = (order) => order.table ? `Table ${order.table}` : 'Takeaway';
+    const locationLabel = (order) => order.platform ? `${order.platform} · ${order.order_reference}` : order.table ? `Table ${order.table}` : 'Takeaway';
     const requestKey = (order) => `${order.id}:${order.revision}:${order.stop_requested_at}`;
     const applyFilter = () => {
         const selected = filter?.value ?? 'all';

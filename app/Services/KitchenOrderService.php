@@ -11,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 
 class KitchenOrderService
 {
+    public function __construct(private readonly OnlineOrderFulfillment $onlineFulfillment) {}
+
     /**
      * @param  array<string, mixed>  $payload
      */
@@ -78,7 +80,12 @@ class KitchenOrderService
             ->select('sales.order_token_id', 'restaurant_tables.number as table_number', 'waiters.name as waiter_name')
             ->get()->keyBy('order_token_id');
 
-        return $orders->map(function (object $order) use ($holds, $sales): array {
+        $onlineOrders = DB::table('online_orders')->join('online_order_sources', 'online_order_sources.id', '=', 'online_orders.online_order_source_id')
+            ->whereIn('online_orders.order_token_id', $tokens)->whereNull('online_orders.deleted_at')
+            ->select('online_orders.id', 'online_orders.order_token_id', 'online_orders.order_reference', 'online_order_sources.name as platform')
+            ->get()->keyBy('order_token_id');
+
+        return $orders->map(function (object $order) use ($holds, $sales, $onlineOrders): array {
             $latestHold = $holds->get($order->order_token_id);
             $activeHold = $latestHold && ! $latestHold->deleted_at && in_array($latestHold->status, ['hold', 'payment_pending'], true) ? $latestHold : null;
             $source = $activeHold ?? $sales->get($order->order_token_id) ?? $latestHold;
@@ -86,6 +93,9 @@ class KitchenOrderService
             return [
                 'id' => $order->id, 'status' => $order->status, 'revision' => $order->revision,
                 'token' => str_pad((string) $order->token_number, 2, '0', STR_PAD_LEFT),
+                'online_order_id' => $onlineOrders->get($order->order_token_id)?->id,
+                'platform' => $onlineOrders->get($order->order_token_id)?->platform,
+                'order_reference' => $onlineOrders->get($order->order_token_id)?->order_reference,
                 'token_date' => $order->token_date, 'table' => $source?->table_number,
                 'waiter' => $source?->waiter_name, 'hold_id' => $activeHold?->id,
                 'items' => json_decode($order->items, true),
@@ -106,6 +116,9 @@ class KitchenOrderService
     public function transition(int $id, string $status, int $revision): void
     {
         DB::transaction(function () use ($id, $status, $revision): void {
+            $tokenId = DB::table('kitchen_orders')->where('id', $id)->value('order_token_id');
+            abort_if(! $tokenId, 404);
+            $onlineOrder = $this->onlineFulfillment->lockForToken((int) $tokenId);
             $order = DB::table('kitchen_orders')->where('id', $id)->whereNull('deleted_at')->lockForUpdate()->first();
             abort_if(! $order, 404);
             if ((int) $order->revision !== $revision) {
@@ -123,6 +136,7 @@ class KitchenOrderService
             if (! in_array($status, $allowed[$order->status] ?? [], true)) {
                 throw ValidationException::withMessages(['status' => 'This ticket has already moved to another stage. Refresh the kitchen board.']);
             }
+            $this->onlineFulfillment->syncKitchenStatus($onlineOrder, $status);
             DB::table('kitchen_orders')->where('id', $id)->update([
                 'status' => $status, 'updated_at' => now(),
                 ...($status === 'ready' ? ['ready_at' => now()] : []),
@@ -151,15 +165,15 @@ class KitchenOrderService
         });
     }
 
-    public function cancelForToken(?int $tokenId): void
+    public function cancelForToken(?int $tokenId, string $reason = 'Held bill cancelled by cashier. Stop preparing this order.'): void
     {
-        DB::transaction(function () use ($tokenId): void {
+        DB::transaction(function () use ($tokenId, $reason): void {
             $order = DB::table('kitchen_orders')->where('order_token_id', $tokenId)->whereNull('deleted_at')->lockForUpdate()->first();
             if (! $order) {
                 return;
             }
             if (in_array($order->status, ['queued', 'preparing'], true)) {
-                $this->recordStopRequest($order, 'Held bill cancelled by cashier. Stop preparing this order.');
+                $this->recordStopRequest($order, $reason);
             } elseif ($order->status === 'ready') {
                 DB::table('kitchen_orders')->where('id', $order->id)->update(['status' => 'cancelled', 'updated_at' => now()]);
             }

@@ -1,3 +1,4 @@
+import './online-orders';
 import './kod';
 import './kitchen';
 

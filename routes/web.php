@@ -97,7 +97,9 @@ Route::middleware('auth')->group(function (): void {
         Route::delete('/pos/expense/{expense}', [PosController::class, 'destroyExpense'])->middleware('permission:pos.close_register')->name('pos.expense.destroy');
 
         Route::get('/pos/online-orders', [OnlineOrderController::class, 'index'])->middleware('permission:online_orders.view')->name('online-orders.index');
+        Route::get('/pos/online-orders/feed', [OnlineOrderController::class, 'feed'])->middleware('permission:online_orders.view')->name('online-orders.feed');
         Route::post('/pos/online-orders', [OnlineOrderController::class, 'store'])->middleware('permission:online_orders.create')->name('online-orders.store');
+        Route::post('/pos/online-orders/{onlineOrder}/kitchen', [OnlineOrderController::class, 'sendToKitchen'])->middleware('permission:online_orders.edit')->name('online-orders.kitchen');
         Route::post('/pos/online-orders/{onlineOrder}/payment', [OnlineOrderController::class, 'addPayment'])->middleware('permission:online_orders.add_payment')->name('online-orders.payment');
         Route::post('/pos/online-orders/{onlineOrder}/status', [OnlineOrderController::class, 'updateStatus'])->middleware('permission:online_orders.edit')->name('online-orders.status');
         Route::get('/pos/online-orders/{onlineOrder}/print', [OnlineOrderController::class, 'printInvoice'])->middleware('permission:online_orders.print')->name('online-orders.print');
